@@ -1,0 +1,5 @@
+{
+    "roots": ["src"],
+    "ignore_dirs": ["node_modules", "logs"],
+    "ignore_files": ["*.log"]
+  }

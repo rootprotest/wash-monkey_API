@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Submit Form</title>
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+</head>
+<body>
+  <form id="submit-form" enctype="multipart/form-data">
+    <div>
+      <label for="name">Name:</label>
+      <input type="text" id="name" name="name" required>
+    </div>
+    <div>
+      <label for="email">Email:</label>
+      <input type="email" id="email" name="email" required>
+    </div>
+    <div>
+      <label for="city">City:</label>
+      <input type="text" id="city" name="city" required>
+    </div>
+    <div>
+      <label for="phone">Phone Number:</label>
+      <input type="text" id="phone" name="phone" required>
+    </div>
+    <div>
+      <label for="post1">Post:</label>
+      <input type="text" id="post1" name="post1" required>
+    </div>
+    <div>
+      <label for="experience">Experience:</label>
+      <input type="text" id="experience" name="experience" required>
+    </div>
+    <div>
+      <label for="msg">Message:</label>
+      <textarea id="msg" name="msg" required></textarea>
+    </div>
+    <div>
+      <label for="additionalRecipients">Additional Recipients (comma-separated emails):</label>
+      <input type="text" id="additionalRecipients" name="additionalRecipients" required>
+    </div>
+    <div>
+      <label for="subjects">Subject:</label>
+      <input type="text" id="subjects" name="subjects" required>
+    </div>
+    <div>
+      <label for="fileatt">File Attachment:</label>
+      <input type="file" id="fileatt" name="fileatt" required>
+    </div>
+    <div>
+      <button type="submit">Submit</button>
+    </div>
+  </form>
+
+  <script>
+    $(document).ready(function () {
+      $('#submit-form').on('submit', function (e) {
+        e.preventDefault();
+
+        const formData = new FormData(this);
+
+        // Handle additionalRecipients as an array
+        const additionalRecipients = formData.get('additionalRecipients').split(',').map(email => email.trim());
+        formData.set('additionalRecipients', JSON.stringify(additionalRecipients));
+
+        axios.post('https://apis.birlaadvaya.xyz/submit-return', formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data'
+          }
+        })
+        .then(function (response) {
+          alert('Form submitted successfully!');
+          console.log(response.data);
+        })
+        .catch(function (error) {
+          alert('An error occurred while submitting the form.');
+          console.error(error);
+        });
+      });
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,49 @@
+http://13.53.197.161:5000/
+http://ec2-13-53-197-161.eu-north-1.compute.amazonaws.com:5000/
+
+git pull origin master
+
+
+const products = await Product.updateMany(
+      {}, // Empty filter to match all documents
+      {
+        $set: {
+          images: [
+            "http://ec2-13-48-245-166.eu-north-1.compute.amazonaws.com:5000/1705581365155-350746432.jpg",
+            "http://ec2-13-48-245-166.eu-north-1.compute.amazonaws.com:5000/1705581365155-350746432.jpg",
+          ],
+        },
+      }
+    );
+
+    const products = await User.updateMany(
+      {}, // Empty filter to match all documents
+      {
+        $set: {
+          lang:"IND",
+        },
+      }
+    );
+
+
+
+server {
+    listen 80;
+    server_name https://winterbear-c7778.web.app/;
+    location / {
+        proxy_pass http://192.168.88.84:5000;//Enter your IP and port.
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
+     }
+}
+
+
+[mongodb-org-7.0]
+name=MongoDB Repository
+baseurl=https://repo.mongodb.org/duf/amazon/2023/mongodb-org/7.0/x86_64/
+gpgcheck=1
+enabled=1
+gpgkey=https://www.mongodb.org/static/pgp/server-7.0.asc
