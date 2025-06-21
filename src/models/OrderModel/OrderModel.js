@@ -10,7 +10,7 @@ const OrderSchema = new mongoose.Schema({
   productIds: [
     { type: mongoose.Schema.Types.ObjectId, ref: "Product", required: true },
   ],
-  totalAmount: { type: Number, required: true }, // You may want to calculate this based on the products
+  totalAmount: { type: Number, required: true },
   paymentStatus: {
     type: String,
     enum: [
@@ -30,21 +30,45 @@ const OrderSchema = new mongoose.Schema({
     ],
     default: "Pending",
   },
-  delivery: { type: String, enum: ["Cash", "Card"], default: "Cash" }, // Add this field
+  delivery: {
+    type: String,
+    enum: ["Cash", "Card", "Online"], // Or replace with ["Home Delivery", "Online"] if it refers to delivery method
+    default: "Online",
+  },
   createdAt: { type: Date, default: Date.now },
   razorpay_payment_id: { type: String, required: true },
   exta_message: { type: String },
   exta_add_item: { type: String },
   applycoupon: { type: String },
   shipment_id: { type: String },
+  bookingTime: { type: String },
+
   quantity: [
     {
-      productId: { type: mongoose.Schema.Types.ObjectId, ref: "Product", required: true },
-      quantity: { type: String, required: true },
+      productId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Product",
+        required: true,
+      },
+      quantity: { type: Number, required: true },
+    },
+  ],
+
+  tasks: [
+    {
+      task_id: { type: String },
+      productId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Product",
+        required: true,
+      },
+      date: { type: Date }, // System date
+      assign_date: { type: Date }, // Scheduled task date
+      time_complete: { type: Date },
+      is_done: { type: Boolean, default: false },
     },
   ],
 });
 
 const Order = mongoose.model("Order", OrderSchema);
-
 module.exports = Order;

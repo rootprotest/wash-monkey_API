@@ -53,7 +53,7 @@ const sendResetEmail = async (userEmail, resetToken) => {
 };
 
 // Send reset email
-const sendVerificationEmail = async (email,otp) => {
+const sendVerificationEmail = async (email, otp) => {
   const mailOptions = {
     from: "sadamimsolutions@gmail.com",
     to: email,
@@ -85,6 +85,7 @@ const updateAdmin = async (adminId, updateData) => {
     throw error;
   }
 };
+
 
 async function sendVerificationSMS(phoneNumber) {
   const apiKey = "07a81cfd6463953ac8e5f3a9d43c1985";
@@ -124,7 +125,7 @@ function generateVerificationCode() {
 
 const sendEmail = async (email, otp) => {
   try {
-   
+
     const transporter = nodemailer.createTransport({
       host: "smtp.gmail.com",
       port: 587,
@@ -135,7 +136,7 @@ const sendEmail = async (email, otp) => {
     });
 
     await transporter.verify();
-    
+
     await transporter.sendMail({
       from: "sadamimsolutions@gmail.com",
       to: email,
@@ -157,9 +158,26 @@ const sendEmail = async (email, otp) => {
   }
 };
 
+const sendOTP = async (mobileNumber, name = "User", appName = "MyApp", otp) => {
+  const apiKey = "5q4tMF4PhzaIw91G";
+  const senderId = "MDTDMO";
+  const message = `Dear ${name}, Your OTP for login to ${appName} is ${otp}. Valid for 30 minutes. Please do not share this OTP. Regards, My Dreams Technology Team`;
+
+  const url = `http://app.mydreamstechnology.in/vb/apikey.php?apikey=${apiKey}&senderid=${senderId}&number=${mobileNumber}&message=${encodeURIComponent(message)}`;
+
+  try {
+    const response = await axios.get(url);
+    console.log("SMS Sent:", response.data);
+    return response.data;
+  } catch (error) {
+    console.error("SMS sending failed:", error.message);
+    throw new Error("Failed to send OTP");
+  }
+};
+
 module.exports = {
   login: async (req, res) => {
-    const { email, password, mobilenumber,google_signin,fcm_token } = req.body;
+    const { email, password, mobilenumber, google_signin, fcm_token } = req.body;
 
     try {
       // Find user by username
@@ -178,41 +196,61 @@ module.exports = {
           mobilenumber ? { mobilenumber } : { email }
         );
         res
-        .status(200)
-        .json({
-          success: true,
-          userId: user._id,
-          UserType: user.UserType,
-        });
-      } else {
-        user = await User.findOne(
-          mobilenumber ? { mobilenumber } : { email }
-        );
-  
-        // Check if user exists
-        if (!user) {
-          return res
-            .status(401)
-            .json({ success: false, message: "Invalid credentials" });
-        }
-        console.log(!user.verified  , user.UserType === "3");
-        // Check if user exists
-        if (user.verified && user.UserType === "3") {
-          return res
           .status(200)
           .json({
             success: true,
             userId: user._id,
             UserType: user.UserType,
           });
+      } else {
+        user = await User.findOne(
+          mobilenumber ? { mobilenumber } : { email }
+        );
+
+        // Check if user exists
+        if (!user) {
+          return res
+            .status(401)
+            .json({ success: false, message: "Invalid credentials" });
+        }
+        console.log(!user.verified, user.UserType === "3");
+        // Check if user exists
+        if (user.UserType === "3") {
+          if (!user.verified) {
+            // Generate OTP (6-digit)
+            const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
+            // Save OTP in user record (if you're storing it)
+            user.OTPNumber = otp;
+            await user.save();
+            console.log(otp,"otp");
+            
+            // Send OTP via SMS
+            await sendOTP(user.mobilenumber, user.name || "User", "My Dreams Technology", otp);
+
+            return res.status(200).json({
+              success: true,
+              message: "OTP sent to your mobile number",
+              userId: user._id,
+              UserType: user.UserType,
+            });
+          }
+
+          // If already verified
+          return res.status(200).json({
+            success: true,
+            userId: user._id,
+            UserType: user.UserType,
+          });
         }
 
-        if(user.UserType === "1" && fcm_token){
+
+        if (user.UserType === "1" && fcm_token) {
           user.fcm_token = fcm_token;
           // Save the updated Product
           const updateduser = await user.save();
         }
-  
+
         // Check password
         if (!mobilenumber) {
           const isPasswordValid = await bcrypt.compare(password, user.password);
@@ -222,14 +260,14 @@ module.exports = {
               .json({ success: false, message: "Invalid credentials" });
           }
         }
-  
+
         // Generate JWT token
         const token = jwt.sign(
           { email: user.email, userId: user._id, UserType: user.UserType },
           "your-secret-key",
           { expiresIn: "1h" }
         );
-  
+
         res
           .status(200)
           .json({
@@ -238,21 +276,21 @@ module.exports = {
             UserType: user.UserType,
           });
       }
-      
+
     } catch (error) {
       console.error(error);
       res.status(500).json({ success: false, error: "Server error" });
     }
   },
-  
 
-  register: async (req, res, ) => {
+
+  register: async (req, res,) => {
     try {
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
         return res.status(400).json({ success: false, errors: errors.array() });
       }
-  
+
       const {
         firstname,
         lastname,
@@ -268,32 +306,32 @@ module.exports = {
         lang,
         google_signin
       } = req.body;
-  
+
       const emailTaken = await isFieldTaken(
         "email",
         email,
         RESPONSE_MESSAGES.EMAIL_TAKEN
       );
       if (emailTaken) return res.status(400).json(emailTaken);
-  
+
       const mobileTaken = await isFieldTaken(
         "mobilenumber",
         mobilenumber,
         RESPONSE_MESSAGES.MOBILE_TAKEN
       );
       if (mobileTaken) return res.status(400).json(mobileTaken);
-  
+
       const usernameTaken = await isFieldTaken(
         "firstname",
         firstname,
         RESPONSE_MESSAGES.USERNAME_TAKEN
       );
       if (usernameTaken) return res.status(400).json(usernameTaken);
-  
+
       const hashedPassword = await bcrypt.hash(password, 10);
       const otp = generateVerificationCode();
       const otpExpiry = Date.now() + 3600000; // OTP expires in 1 hour
-  
+
       const newUser = await User.create({
         firstname,
         lastname,
@@ -307,7 +345,7 @@ module.exports = {
         OTPExpiry: otpExpiry,
         verified: true,
       });
-  
+
       if (google_signin) {
         const response = {
           success: true,
@@ -317,37 +355,26 @@ module.exports = {
         };
         return res.status(200).json(response);
       }
-  
-      if (UserType === "2") {
-        newAdmin = await Admin.create({
-          storename,
-          storeaddress,
-          admin_id: newUser._id,
-          storetimming,
-          lat,
-          log,
-        });
-      }
-  
+
+     
+
       await sendEmail(email, otp);
-  
+
       const response = {
         success: true,
         user: newUser,
       };
-  
-      if (newAdmin) {
-        response.admin = newAdmin;
-      }
+
      
-      
+
+
       res.status(200).json(response);
     } catch (error) {
       console.error(error);
       res.status(500).json({ success: false, error: RESPONSE_MESSAGES.SERVER_ERROR });
     }
   },
-  
+
   listUsers: async (req, res) => {
     try {
       // Fetch all users
@@ -690,26 +717,26 @@ module.exports = {
   userImageGetById: async (req, res) => {
     try {
       const userId = req.params.id;
-      const { profile_img,firstName,lastName } = req.body;
+      const { profile_img, firstName, lastName } = req.body;
       const imageUrl = req.fileUrls ? req.fileUrls['file'] : null;
 
       // Check if the user with the given ID exists
       const userData = await User.findById(userId);
-  
+
       if (!userData) {
         return res.status(404).json({ success: false, error: "User not found" });
       }
-  
+
       // Update the profile_img if provided
       if (profile_img !== undefined && profile_img !== null) {
         userData.profile_img = profile_img;
       }
-       // Update the profile_img if provided
-       if (firstName !== undefined && firstName !== null) {
+      // Update the profile_img if provided
+      if (firstName !== undefined && firstName !== null) {
         userData.firstname = firstName;
       }
-       // Update the profile_img if provided
-       if (lastName !== undefined && lastName !== null) {
+      // Update the profile_img if provided
+      if (lastName !== undefined && lastName !== null) {
         userData.lastname = lastName;
       }
 
@@ -717,10 +744,10 @@ module.exports = {
       if (imageUrl !== undefined && imageUrl !== null) {
         userData.profile_img = imageUrl[0];
       }
-  
+
       // Save the updated user
       await userData.save();
-  
+
       res.status(200).json({
         success: true,
         user: userData,
@@ -734,26 +761,26 @@ module.exports = {
     try {
       const { email, otp } = req.body;
       const user = await User.findOne({ email });
-  
+
       if (!user) {
         return res.status(404).json({ success: false, message: "User not found" });
       }
-  
+
       if (user.OTPNumber !== otp || user.OTPExpiry < Date.now()) {
         return res.status(401).json({ success: false, message: "Invalid or expired OTP" });
       }
-  
+
       // Reset the OTP and mark the user as verified
       user.OTPNumber = null;
       user.OTPExpiry = null;
       user.verified = true;
       await user.save();
-  
+
       res.status(200).json({ success: true, message: "Email verified successfully" });
     } catch (error) {
       console.error(error);
       res.status(500).json({ success: false, error: "Server error" });
     }
   },
-  
+
 };
