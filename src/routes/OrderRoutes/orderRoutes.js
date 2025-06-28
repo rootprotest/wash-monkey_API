@@ -16,6 +16,8 @@ router.get('/OrderlistById/:id', OrderController.getAllOrder);
 
 router.get('/Orderlist', OrderController.getAllOrderList);
 
+router.get('/TaskList/:id', OrderController.getAllTaskListForToday);
+
 
 router.get('/Dashboardlist', OrderController.getAllDashboard);
 

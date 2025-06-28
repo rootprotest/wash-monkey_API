@@ -411,6 +411,59 @@ exports.getAllOrderList = async (req, res) => {
   }
 };
 
+exports.getAllTaskListForToday = async (req, res) => {
+  try {
+    // Get today's date as string for comparison
+    const todayStr = new Date().toDateString();
+
+    // Fetch all orders
+    const allOrders = await Order.find();
+
+    // Process each order
+    const taskOrderPromises = allOrders.map(async (order) => {
+      // Skip orders without tasks or if no task is assigned today
+      if (!Array.isArray(order.tasks)) return null;
+
+      const hasTodayTask = order.tasks.some(task => {
+        const assignDate = new Date(task.assign_date).toDateString();
+        return assignDate === todayStr;
+      });
+
+      if (!hasTodayTask) return null;
+
+      // Fetch address and user
+      const address = await Address.findById(order.addressId);
+      const user = await User.findById(order.userId);
+
+      // Fetch product details
+      const productPromises = order.productIds.map(async (productId) => {
+        const product = await Product.findById(productId);
+        return product;
+      });
+
+      const productsWithDetails = await Promise.all(productPromises);
+
+      return {
+        ...order._doc,
+        address,
+        user,
+        products: productsWithDetails,
+      };
+    });
+
+    const ordersWithTodayTasks = await Promise.all(taskOrderPromises);
+
+    // Filter out nulls (i.e., orders without tasks assigned today)
+    const filteredOrders = ordersWithTodayTasks.filter(order => order !== null);
+
+    res.status(200).json({ success: true, orders: filteredOrders });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, error: "Server error" });
+  }
+};
+
+
 // Update a specific order by ID
 exports.updateOrderById = async (req, res) => {
   try {

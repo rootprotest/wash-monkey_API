@@ -213,6 +213,8 @@ module.exports = {
             .status(401)
             .json({ success: false, message: "Invalid credentials" });
         }
+       
+
         console.log(!user.verified, user.UserType === "3");
         // Check if user exists
         if (user.UserType === "3") {
@@ -235,6 +237,16 @@ module.exports = {
               UserType: user.UserType,
             });
           }
+           if (!mobilenumber) {
+  const isPasswordValid = await bcrypt.compare(password, user.password);
+  console.log(isPasswordValid,"isPasswordValid");
+  
+  if (!isPasswordValid) {
+    return res
+      .status(401)
+      .json({ success: false, message: "Password Invalid" });
+  }
+}
 
           // If already verified
           return res.status(200).json({
@@ -298,11 +310,7 @@ module.exports = {
         password,
         mobilenumber,
         UserType,
-        storename,
-        storeaddress,
-        storetimming,
-        lat,
-        log,
+       
         lang,
         google_signin
       } = req.body;
