@@ -22,10 +22,9 @@ exports.createProduct = async (req, res) => {
     const {
       name,
       description,
-      amount,
+      price,
       offeramount,
       color,
-      weight,
       dimensions,
       sku,
       availability,
@@ -33,10 +32,12 @@ exports.createProduct = async (req, res) => {
       createdBy,
       category,
       category_id,
-      brand_id,
       lang,
-      qty,
-      sub_brand_id
+      is_new,
+      is_hot,
+      is_recommended,
+      days,
+      quantity
     } = req.body;
     console.log(req.file, req.files,req.fileUrls);
     // Assuming "images" is a file field in the form
@@ -45,22 +46,23 @@ exports.createProduct = async (req, res) => {
     const newProduct = await Product.create({
       name,
       description,
-      amount,
+      price,
       offeramount,
-      images: imageUrl, // Storing images as base64-encoded string, adjust as needed
+      image: imageUrl[0], // Storing images as base64-encoded string, adjust as needed
       color,
-      weight,
       dimensions,
       sku,
       availability,
       isActive,
       createdBy,
       category,
-      brand_id,
       category_id,
       lang,
-      qty,
-      sub_brand_id
+      is_new,
+      is_hot,
+      is_recommended,
+      days,
+      quantity
     });
 
     console.log(newProduct);
@@ -452,7 +454,7 @@ exports.updateProductById = async (req, res) => {
     const {
       name,
       description,
-      amount,
+      price,
       offeramount,
       color,
       weight,
@@ -463,11 +465,14 @@ exports.updateProductById = async (req, res) => {
       createdBy,
       category,
       lang,
-      brand_id,
       qty,
       category_id,
-      sub_brand_id,
-      key_word
+      key_word,
+       is_new,
+      is_hot,
+      is_recommended,
+      days,
+      quantity
     } = req.body;
 
     // Check if the Product exists
@@ -485,11 +490,11 @@ exports.updateProductById = async (req, res) => {
     // Update the Product fields
     if (name !== undefined && name !== null) existingProduct.name = name;
     if (description !== undefined && description !== null) existingProduct.description = description;
-    if (amount !== undefined && amount !== null) existingProduct.amount = amount;
+    if (price !== undefined && price !== null) existingProduct.price = price;
     if (offeramount !== undefined && offeramount !== null) existingProduct.offeramount = offeramount;
     // Handle image update if needed
     if(imageUrl) {
-      existingProduct.images = imageUrl ;
+      existingProduct.image = imageUrl[0] ;
     } 
     if (color !== undefined && color !== null) existingProduct.color = color;
     if (weight !== undefined && weight !== null) existingProduct.weight = weight;
@@ -500,8 +505,11 @@ exports.updateProductById = async (req, res) => {
     if (createdBy !== undefined && createdBy !== null) existingProduct.createdBy = createdBy;
     if (category !== undefined && category !== null) existingProduct.category = category;
     if (category_id !== undefined && category_id !== null) existingProduct.category_id = category_id;
-    if (sub_brand_id !== undefined && sub_brand_id !== null) existingProduct.sub_brand_id = sub_brand_id;
-    if (brand_id !== undefined && brand_id !== null) existingProduct.brand_id = brand_id;
+    if (is_new !== undefined && is_new !== null) existingProduct.is_new = is_new;
+    if (is_hot !== undefined && is_hot !== null) existingProduct.is_hot = is_hot;
+    if (is_recommended !== undefined && is_recommended !== null) existingProduct.is_recommended = is_recommended;
+    if (days !== undefined && days !== null) existingProduct.days = days;
+    if (quantity !== undefined && quantity !== null) existingProduct.quantity = quantity;
     if (lang !== undefined && lang !== null) existingProduct.lang = lang;
     if (!isNaN(parseFloat(qty)) && isFinite(qty)) existingProduct.qty = qty; // Check if qty is a valid number
     if (key_word !== undefined && key_word !== null) existingProduct.key_word = key_word;

@@ -40,17 +40,34 @@ const isFieldTaken = async (field, value, errorMessage) => {
 
 // Send reset email
 const sendResetEmail = async (userEmail, resetToken) => {
-  const resetLink = `http://localhost:5000/reset?token=${resetToken}`;
+  const resetLink = `https://apis.washmonkey.in/reset?token=${resetToken}`;
 
   const mailOptions = {
-    from: "sadamimsolutions@gmail.com",
+    from: `"Support" <${process.env.EMAIL_USER}>`,
     to: userEmail,
-    subject: "Password Reset",
-    text: `Click the following link to reset your password: ${resetLink}`,
+    subject: "🔐 Password Reset Request",
+    html: `
+      <div style="font-family: Arial, sans-serif; padding: 20px;">
+        <h2>Password Reset Requested</h2>
+        <p>We received a request to reset your password.</p>
+
+        
+
+        <p>
+          <a href="${resetLink}" 
+             style="padding: 10px 20px; background-color: #007bff; color: white; text-decoration: none; border-radius: 5px;">
+            Reset Password
+          </a>
+        </p>
+        <p>If you did not request this, please ignore this email.</p>
+        <p style="margin-top: 20px;">Thanks,<br/>Wash Monkey Team</p>
+      </div>
+    `,
   };
 
   await transporter.sendMail(mailOptions);
 };
+
 
 // Send reset email
 const sendVerificationEmail = async (email, otp) => {
@@ -436,7 +453,7 @@ module.exports = {
       await user.save();
 
       // Send reset email
-      await sendResetEmail(user.email, resetToken);
+      await sendResetEmail(user.email, resetToken,"root1223");
 
       res
         .status(200)

@@ -4,13 +4,20 @@ const ProductSchema = new mongoose.Schema({
   name: { type: String, required: true },
   description: { type: String },
   price: { type: Number }, // Converted from string to number
+  offeramount: { type: Number }, // Converted from string to number
   image: { type: String }, // Main image URL
+  color: { type: String }, // Main image URL
+  sku: { type: String }, // Main image URL
+  dimensions: { type: String }, // Main image URL
+  isActive: { type: String }, // Main image URL
+  availability: { type: String }, // Main image URL
   quantity: { type: Number, default: null }, // Can be used for stock
-  weight: { type: Number, default: null },
+  weight: { type: String, default: null },
   marirty: { type: String }, // New field as per your request
 
   tags: { type: [String], default: [] }, // e.g. ["Today Cleaning", "Week End"]
   category: { type: [String], default: [] }, // e.g. ["Basic Wash"]
+  category_id:{ type: String },
 
   is_new: { type: Boolean, default: false },
   is_hot: { type: Boolean, default: false },

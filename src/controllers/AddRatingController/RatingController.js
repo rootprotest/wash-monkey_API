@@ -1,18 +1,18 @@
-const Rating = require("../../models/AddRating/RatingModel");
+const Rating = require("../../models/AddReviews/Review");
 
 // Create a new rating
 exports.createRating = async (req, res) => {
   try {
-    const { productId, userId, rating, comment } = req.body;
+    const { orderId, userId, rating, comment } = req.body;
 
     // Check if required fields are provided
-    if (!productId || !userId || !rating) {
+    if (!orderId || !userId || !rating) {
       return res.status(400).json({ success: false, error: "Missing required fields" });
     }
 
     // Create a new rating
     const newRating = await Rating.create({
-      productId,
+      orderId,
       userId,
       rating,
       comment
@@ -26,15 +26,31 @@ exports.createRating = async (req, res) => {
 };
 
 // Get all ratings
+
+// Get all ratings (fill with dummy data if less than 5)
+
 exports.getAllRatings = async (req, res) => {
   try {
-    const ratings = await Rating.find();
-    res.status(200).json({ success: true, ratings });
+    // Fetch ratings and populate full user details
+    const ratings = await Rating.find()
+      .populate("userId") // fetch full user object
+      .lean(); // Convert Mongoose docs to plain JS objects for easier manipulation
+
+    // Format the ratings to include only the date (YYYY-MM-DD)
+    const formattedRatings = ratings.map((rating) => ({
+      ...rating,
+      createdAt: rating.createdAt.toISOString().split('T')[0], // "YYYY-MM-DD"
+      updatedAt: rating.updatedAt.toISOString().split('T')[0],
+    }));
+
+    res.status(200).json({ success: true, ratings: formattedRatings });
   } catch (error) {
     console.error(error);
     res.status(500).json({ success: false, error: "Server error" });
   }
 };
+
+
 
 // Get a rating by ID
 exports.getRatingById = async (req, res) => {
@@ -55,8 +71,8 @@ exports.getRatingById = async (req, res) => {
 
 exports.getProductById = async (req, res) => {
   try {
-    const productId = req.params.id; // Extract product ID from the URL parameters
-    const ratings = await Rating.find({ productId }); // Find ratings for the given product ID
+    const orderId = req.params.id; // Extract product ID from the URL parameters
+    const ratings = await Rating.find({ orderId }); // Find ratings for the given product ID
 
     if (!ratings || ratings.length === 0) {
       // If no ratings found, return a 404 response

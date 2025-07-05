@@ -1,112 +1,100 @@
-// controllers/Event.js
-const Event = require("../../models/AddEvent/EventModal");
+const Inventory = require("../../models/AddEvent/EventModal");
 
-// Create a new event
-exports.createEvent = async (req, res) => {
+// Create a new inventory item
+exports.createInventory = async (req, res) => {
   try {
-    const { name, description, isActive, createdBy, lang } = req.body;
-    console.log(req.files, req.file,req.fileUrls);
+    const { itemName, description, qty, isActive, createdBy, lang, trackingEmployees } = req.body;
 
-
-    const newEvent = await Event.create({
-      name,
+    const newInventory = await Inventory.create({
+      itemName,
       description,
-      imageUrl: req.fileUrls[0],
+      qty,
       isActive,
       createdBy,
       lang,
+      trackingEmployees, // optional
     });
 
-    res.status(200).json({ success: true, event: newEvent });
+    res.status(200).json({ success: true, inventory: newInventory });
   } catch (error) {
     console.error(error);
     res.status(500).json({ success: false, error: "Server error" });
   }
 };
 
-// Get all Events
-exports.getAllEvents = async (req, res) => {
+// Get all inventory items
+exports.getAllInventories = async (req, res) => {
   try {
-    const events = await Event.find();
+    const inventories = await Inventory.find().populate('trackingEmployees.employeeId');
 
-    res.status(200).json({ success: true, events });
+    res.status(200).json({ success: true, inventories });
   } catch (error) {
     console.error(error);
     res.status(500).json({ success: false, error: "Server error" });
   }
 };
 
-// Get a specific Event by ID
-exports.getEventById = async (req, res) => {
+// Get a specific inventory item by ID
+exports.getInventoryById = async (req, res) => {
   try {
-    const eventId = req.params.id;
-    const event = await Event.findById(eventId);
+    const inventoryId = req.params.id;
+    const inventory = await Inventory.findById(inventoryId).populate('trackingEmployees.employeeId');
 
-    if (!event) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Event not found" });
+    if (!inventory) {
+      return res.status(404).json({ success: false, message: "Inventory item not found" });
     }
 
-    res.status(200).json({ success: true, event });
+    res.status(200).json({ success: true, inventory });
   } catch (error) {
     console.error(error);
     res.status(500).json({ success: false, error: "Server error" });
   }
 };
 
-// Update a specific Event by ID
-exports.updateEventById = async (req, res) => {
+// Update a specific inventory item by ID
+exports.updateInventoryById = async (req, res) => {
   try {
-    const eventId = req.params.id;
-    const { name, description, createdBy, lang } = req.body;
+    const inventoryId = req.params.id;
+    const { itemName, description, qty, isActive, createdBy, lang, trackingEmployees } = req.body;
 
-    // const imagePaths = req.files ? req.files.map(file => `${file.filename}`) : null;
+    const existingInventory = await Inventory.findById(inventoryId);
 
-    // Check if the Event exists
-    const existingEvent = await Event.findById(eventId);
-
-    if (!existingEvent) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Event not found" });
+    if (!existingInventory) {
+      return res.status(404).json({ success: false, message: "Inventory item not found" });
     }
 
-    // Update the Event fields
-    existingEvent.name = name;
-    existingEvent.description = description;
-    existingEvent.imageUrl = req.fileUrls[0];
-    existingEvent.createdBy = createdBy;
-    existingEvent.lang = lang;
+    // Update the fields
+    existingInventory.itemName = itemName;
+    existingInventory.description = description;
+    existingInventory.qty = qty;
+    existingInventory.isActive = isActive;
+    existingInventory.createdBy = createdBy;
+    existingInventory.lang = lang;
+    existingInventory.trackingEmployees = trackingEmployees || [];
 
-    // Save the updated Event
-    const updatedEvent = await existingEvent.save();
+    const updatedInventory = await existingInventory.save();
 
-    res.status(200).json({ success: true, event: updatedEvent });
+    res.status(200).json({ success: true, inventory: updatedInventory });
   } catch (error) {
     console.error(error);
     res.status(500).json({ success: false, error: "Server error" });
   }
 };
 
-// Delete a specific Event by ID
-exports.deleteEventById = async (req, res) => {
+// Delete a specific inventory item by ID
+exports.deleteInventoryById = async (req, res) => {
   try {
-    const eventId = req.params.id;
+    const inventoryId = req.params.id;
 
-    // Check if the Event exists
-    const existingEvent = await Event.findById(eventId);
+    const existingInventory = await Inventory.findById(inventoryId);
 
-    if (!existingEvent) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Event not found" });
+    if (!existingInventory) {
+      return res.status(404).json({ success: false, message: "Inventory item not found" });
     }
 
-    // Remove the Event from the database
-    await Event.deleteOne({ _id: eventId });
+    await Inventory.deleteOne({ _id: inventoryId });
 
-    res.status(200).json({ success: true, message: "Event deleted successfully" });
+    res.status(200).json({ success: true, message: "Inventory item deleted successfully" });
   } catch (error) {
     console.error(error);
     res.status(500).json({ success: false, error: "Server error" });

@@ -76,8 +76,10 @@ exports.updateCategoryById = async (req, res) => {
 
     // Ensure req.fileUrls is properly structured
     const imageUrl = req.fileUrls ? req.fileUrls['imageFile'] : null;
-    const categoryImgDesktop = req.fileUrls ? req.fileUrls['ImgDesktop'] : null;
-    const categoryImgMobile = req.fileUrls ? req.fileUrls['ImgMobile'] : null;
+    console.log(imageUrl,"req.fileUrls");
+    
+    // const categoryImgDesktop = req.fileUrls ? req.fileUrls['ImgDesktop'] : null;
+    // const categoryImgMobile = req.fileUrls ? req.fileUrls['ImgMobile'] : null;
 
     // Update the category fields
     existingCategory.name = name;
@@ -86,14 +88,14 @@ exports.updateCategoryById = async (req, res) => {
 
     // Update image URLs only if new files are uploaded
     if (imageUrl) {
-      existingCategory.imageUrl = imageUrl;
+      existingCategory.imageUrl = imageUrl[0];
     }
-    if (categoryImgDesktop) {
-      existingCategory.category_img_desktop = categoryImgDesktop;
-    }
-    if (categoryImgMobile) {
-      existingCategory.category_img_mobile = categoryImgMobile;
-    }
+    // if (categoryImgDesktop) {
+    //   existingCategory.category_img_desktop = categoryImgDesktop;
+    // }
+    // if (categoryImgMobile) {
+    //   existingCategory.category_img_mobile = categoryImgMobile;
+    // }
 
     existingCategory.createdBy = createdBy;
     existingCategory.lang = lang;

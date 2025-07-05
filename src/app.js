@@ -11,27 +11,25 @@ const mongoose = require("mongoose");
 const multer = require('multer');
 const authRoutes = require("./routes/authRoutes");
 const UserController = require("./routes/UserRoutes/userRoutes");
-const FUserController = require("./routes/FUserRoutes/FuserRoutes");
 const categoryRoutes = require("./routes/categoryRoutes/categoryRoutes");
 const brandRoutes = require("./routes/BrandRoutes/brandRoutes");
 const SubBrandRoutes = require("./routes/SubBrandRoutes/subBrandRoutes")
 const productRoutes = require("./routes/ProductRoutes/productRoutes");
-const FproductRoutes = require("./routes/FProductRoutes/FproductRoutes");
 const couponRoutes = require("./routes/couponRoutes/CouponRouter");
 const addressRoutes = require("./routes/AddressRoutes/addressRoutes");
 const addcartRoutes = require("./routes/AddCartRoutes/addCartRoutes");
-const FaddcartRoutes = require("./routes/AddFCardRoutes/addFCardRoutes");
 const orderRoutes = require("./routes/OrderRoutes/orderRoutes");
-const ForderRoutes = require("./routes/FOrderRoutes/ForderRouter");
 const BannerRoutes = require("./routes/BannerRouters/BannerRoutes");
-const FBannerRoutes = require("./routes/AddBannerRoutes/FBannerRoutes");
 const EmployeeRoutes = require("./routes/AddEmployess/addEmployeesRoutes")
 const FAQRoutes = require("./routes/AddFaqRoutes/faqRoutes")
 const RatingRoute = require("./routes/AddRatingRoutes/RatingRoutes")
 const EventRoute = require("./routes/AddEventRoutes/EventRoutes")
 const BlogRoutes = require("./routes/AddBlogsRoutes/BlogRoutes")
 const WishlistRoutes = require("./routes/addwishlistRouters/WishlistRoutes")
-const FWishlistRoutes = require("./routes/FAddWishlistRoutes/FWishlistRoutes")
+const User = require("../src/models/UserModel/User");
+const ReviewRoutes = require("./routes/AddRatingRoutes/RatingRoutes")
+
+const bcrypt = require("bcrypt");
 
 // const files = fs.readFileSync('./62ACF8182B9E5DCCC1E610CE4B2C525F.txt') 
 const cheerio   = require('cheerio');
@@ -72,27 +70,108 @@ app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
 
 app.use("/api/auth", authRoutes);
 app.use("/api/user", UserController);
-app.use("/api/franch-user", FUserController);
 app.use("/api/category", categoryRoutes);
 app.use("/api/brand", brandRoutes);
 app.use("/api/sub-brand", SubBrandRoutes);
 app.use("/api/product", productRoutes);
-app.use("/api/franch-product", FproductRoutes);
 app.use("/api/coupon", couponRoutes);
 app.use("/api/address", addressRoutes);
 app.use("/api/addcart", addcartRoutes);
-app.use("/api/franch-addcart", FaddcartRoutes);
 app.use("/api/wishlist", WishlistRoutes);
-app.use("/api/franch-wishlist", FWishlistRoutes);
 app.use("/api/order", orderRoutes);
-app.use("/api/franch-order", ForderRoutes);
-app.use("/api/franch-header", FBannerRoutes);
 app.use("/api/header", BannerRoutes);
 app.use("/api/staff", EmployeeRoutes);
 app.use("/api/faq", FAQRoutes);
 app.use("/api/review",RatingRoute);
 app.use("/api/event",EventRoute); 
 app.use("/api/blog",BlogRoutes);
+app.use("/api/reviews",ReviewRoutes);
+
+app.get("/reset", async (req, res) => {
+  const { token } = req.query;
+  if (!token) return res.status(400).send("Token is required");
+
+  try {
+    const user = await User.findOne({
+      resetToken: token,
+      resetTokenExpiration: { $gt: Date.now() },
+    });
+
+    if (!user) {
+      return res.status(400).send("Invalid or expired token");
+    }
+
+    // Serve HTML form with hidden token field
+    res.send(`
+      <html>
+        <head>
+          <title>Reset Password</title>
+          <style>
+            body { font-family: Arial, sans-serif; margin: 50px; }
+            input { padding: 8px; margin: 5px 0; width: 100%; }
+            button { padding: 10px; background-color: #28a745; color: white; border: none; cursor: pointer; }
+            form { max-width: 400px; margin: auto; }
+          </style>
+        </head>
+        <body>
+          <h2>Reset Your Password</h2>
+          <form method="POST" action="/reset">
+            <input type="hidden" name="token" value="${token}" />
+            <label>New Password:</label>
+            <input type="password" name="password" required />
+            <label>Confirm Password:</label>
+            <input type="password" name="confirmPassword" required />
+            <button type="submit">Submit</button>
+          </form>
+        </body>
+      </html>
+    `);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Something went wrong");
+  }
+});
+
+
+app.post("/reset", async (req, res) => {
+  const { token, password, confirmPassword } = req.body;
+
+  if (!token || !password || !confirmPassword) {
+    return res.status(400).send("All fields are required.");
+  }
+
+  if (password !== confirmPassword) {
+    return res.status(400).send("Passwords do not match.");
+  }
+
+  try {
+    const user = await User.findOne({
+      resetToken: token,
+      resetTokenExpiration: { $gt: Date.now() },
+    });
+
+    if (!user) {
+      return res.status(400).send("Invalid or expired token.");
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+    user.password = hashedPassword;
+    user.resetToken = undefined;
+    user.resetTokenExpiration = undefined;
+
+    await user.save();
+
+    // ✅ Redirect to Gmail after successful password reset
+    res.redirect("https://mail.google.com/");
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Something went wrong");
+  }
+});
+
+
+
+
 
 
 // Endpoint for uploading and processing Excel file

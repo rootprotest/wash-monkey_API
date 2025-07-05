@@ -4,10 +4,10 @@ const path = require("path");
 
 const storage = new Storage({
   keyFilename: path.join(__dirname, '..', 'file', 'email-js-1a09b-firebase-adminsdk-ensw9-93ddb0e54d.json'),
-  projectId: 'email-js-1a09b',
+  projectId: 'majestic-poetry-462610-v5',
 });
 
-const bucketName = 'email-js-1a09b.appspot.com';
+const bucketName = 's3buket';
 const bucket = storage.bucket(bucketName);
 
 const multerMemoryStorage = multer.memoryStorage();

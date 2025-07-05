@@ -1,22 +1,22 @@
-// routes/eventRoutes.js
 const express = require('express');
 const router = express.Router();
-const { uploadHandler } = require("../../Image/multerSetup")
-const EventController = require('../../controllers/AddEventContoller/EventContoller');
 
-// Create a new Event
-router.post('/addevent', uploadHandler, EventController.createEvent);
+// Import your controller
+const InventoryController = require('../../controllers/AddEventContoller/EventContoller');
 
-// Get all events
-router.get('/allevents', EventController.getAllEvents);
+// Create a new Inventory item
+router.post('/addinventory', InventoryController.createInventory);
 
-// Get a specific Event by ID
-router.get('/event/:id', EventController.getEventById);
+// Get all Inventory items
+router.get('/allinventories', InventoryController.getAllInventories);
 
-// Updated a specific Event by ID
-router.put('/event/:id', uploadHandler, EventController.updateEventById);
+// Get a specific Inventory item by ID
+router.get('/inventory/:id', InventoryController.getInventoryById);
 
-// Delete a specific Event by ID
-router.delete('/event/:id', EventController.deleteEventById);
+// Update a specific Inventory item by ID
+router.put('/inventory/:id', InventoryController.updateInventoryById);
+
+// Delete a specific Inventory item by ID
+router.delete('/inventory/:id', InventoryController.deleteInventoryById);
 
 module.exports = router;

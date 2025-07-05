@@ -11,7 +11,7 @@
     "run": "node dist/app.js"
   },
  "engines": {
-    "node": "23"
+    "node": "20"
   },
   "author": "",
   "license": "ISC",
