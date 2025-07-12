@@ -4,6 +4,8 @@ const Address = require('../../models/Address/AddressModel');
 exports.createAddress = async (req, res) => {
   try {
     const { userId, fullName, phone, companyName, street, city, state, pinCode, email, typeAddress } = req.body;
+    console.log({ userId, fullName, phone, companyName, street, city, state, pinCode, email, typeAddress });
+    
 
     const newAddress = await Address.create({
       userId,

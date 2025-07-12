@@ -28,6 +28,10 @@ const BlogRoutes = require("./routes/AddBlogsRoutes/BlogRoutes")
 const WishlistRoutes = require("./routes/addwishlistRouters/WishlistRoutes")
 const User = require("../src/models/UserModel/User");
 const ReviewRoutes = require("./routes/AddRatingRoutes/RatingRoutes")
+const VehicleRoutes = require("./routes/AddVehicleRoutes/VehicleRoutes")
+const helpSupportRoutes = require('./routes/AddHelpSupport/helpSupportRoutes');
+
+
 
 const bcrypt = require("bcrypt");
 
@@ -86,6 +90,8 @@ app.use("/api/review",RatingRoute);
 app.use("/api/event",EventRoute); 
 app.use("/api/blog",BlogRoutes);
 app.use("/api/reviews",ReviewRoutes);
+app.use('/api/vehicles', VehicleRoutes);
+app.use('/api/support', helpSupportRoutes);
 
 app.get("/reset", async (req, res) => {
   const { token } = req.query;
