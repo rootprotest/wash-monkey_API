@@ -4,6 +4,8 @@ const jwt = require("jsonwebtoken");
 const { validationResult } = require("express-validator");
 const User = require("../../models/UserModel/User");
 const Admin = require("../../models/UserModel/Admin");
+const Order = require("../../models/OrderModel/OrderModel");
+
 const transporter = require("../../utils/emailConfig");
 const { v4: uuidv4 } = require("uuid");
 const axios = require('axios');
@@ -643,10 +645,29 @@ module.exports = {
           .json({ success: false, message: "Account not Verified" });
       }
 
-      res.status(200).json({
-        success: true,
-        User: userData,
-      });
+     // Fetch orders by status
+   const [completedOrders, pendingOrders, inProgressOrders] = await Promise.all([
+  Order.countDocuments({ userId, paymentStatus: "Completed" }),
+  Order.countDocuments({ userId, paymentStatus: "Confirmed" }),
+  Order.countDocuments({ userId, paymentStatus: "InProgress" }),
+]);
+
+// Convert userData to a plain JavaScript object if it's a Mongoose Document
+const userObj = userData.toObject();
+
+// Add order counts inside user object
+userObj.orders = {
+  completed: completedOrders,
+  pending: pendingOrders,
+  inProgress: inProgressOrders,
+  total: completedOrders + pendingOrders + inProgressOrders
+};
+
+return res.status(200).json({
+  success: true,
+  User: userObj,
+});
+
     } catch (error) {
       console.error(error);
       res.status(500).json({ success: false, error: "Server error" });

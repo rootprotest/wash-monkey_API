@@ -24,13 +24,22 @@ exports.createSupportTicket = async (req, res) => {
 
 exports.getAllSupportTickets = async (req, res) => {
   try {
-    const tickets = await HelpSupport.find().sort({ submittedAt: -1 });
+    const tickets = await HelpSupport.find()
+      .sort({ submittedAt: -1 })
+      .populate({
+        path: "userId",
+        select: "firstname lastname email", // Only fetch these fields
+      })
+      .lean(); // Converts Mongoose documents into plain JavaScript objects
+
     res.status(200).json({ success: true, tickets });
-  } catch (err) {
-    console.error('Error fetching support tickets:', err);
+  } catch (error) {
+    console.error('Error fetching support tickets:', error.message);
     res.status(500).json({ success: false, error: 'Server error' });
   }
 };
+
+
 
 exports.getSupportTicketsByUserId = async (req, res) => {
   try {

@@ -57,7 +57,7 @@ const OrderSchema = new mongoose.Schema({
   applycoupon: { type: String },
   shipment_id: { type: String },
   bookingTime: { type: String },
-
+  walletamount: { type: Number, default: 0 },
   quantity: [
     {
       productId: {

@@ -236,7 +236,7 @@ const onCreateOrder = async (addressId, codType, newOrderList) => {
 
 exports.createOrder = async (req, res) => {
   try {
-    const { userId, addressId, productIds, totalAmount, delivery, razorpay_payment_id, paymentStatus, applycoupon, quantity,tasks,bookingTime } = req.body;
+    const { userId, addressId, productIds, totalAmount, delivery, razorpay_payment_id, paymentStatus, applycoupon, quantity, tasks, bookingTime, walletamount } = req.body;
 
     const newOrder = await Order.create({
       userId,
@@ -249,7 +249,8 @@ exports.createOrder = async (req, res) => {
       applycoupon,
       quantity,
       tasks,
-      bookingTime
+      bookingTime,
+      walletamount
     });
 
     const user = await User.findById(userId);
@@ -258,8 +259,11 @@ exports.createOrder = async (req, res) => {
       return res.status(404).json({ success: false, error: "User not found" });
     }
 
-    // user.loyalty_point += 10;
+    const newPoints = Number(user.loyalty_point || 0) - Number(walletamount || 0);
+    user.loyalty_point = Math.max(newPoints, 0);
     await user.save();
+
+
 
     // const deliveryType = delivery === "Card" ? 1 : 0;
     // let orderResponses = await onCreateOrder(addressId, deliveryType, newOrder);
