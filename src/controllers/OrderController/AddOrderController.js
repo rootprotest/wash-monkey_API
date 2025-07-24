@@ -236,7 +236,7 @@ const onCreateOrder = async (addressId, codType, newOrderList) => {
 
 exports.createOrder = async (req, res) => {
   try {
-    const { userId, addressId, productIds, totalAmount, delivery, razorpay_payment_id, paymentStatus, applycoupon, quantity, tasks, bookingTime, walletamount } = req.body;
+    const { userId, addressId, productIds, totalAmount, delivery, razorpay_payment_id, paymentStatus, applycoupon, quantity,tasks,bookingTime,walletamount } = req.body;
 
     const newOrder = await Order.create({
       userId,
@@ -259,9 +259,9 @@ exports.createOrder = async (req, res) => {
       return res.status(404).json({ success: false, error: "User not found" });
     }
 
-    const newPoints = Number(user.loyalty_point || 0) - Number(walletamount || 0);
-    user.loyalty_point = Math.max(newPoints, 0);
-    await user.save();
+const newPoints = Number(user.loyalty_point || 0) - Number(walletamount || 0);
+user.loyalty_point = Math.max(newPoints, 0);
+await user.save();
 
 
 
@@ -633,11 +633,32 @@ exports.getAllDashboard = async (req, res) => {
         months_order,
         yearly_order,
         total_order,
+        available_agents:0,
+        pending_order:0,
+        completed_order:10,
+          "categories": {
+      "exterior": 10,
+      "interior": 7,
+      "compensation": 5
+   },
+   "on_demand_orders": {
+      "total": 20,
+      "completed": 15,
+      "pending": 5
+   },
+   "subscription_orders": {
+      "total": 30,
+      "completed": 25,
+      "pending": 5
+   }
       },
       sales,
       chartYears,
       // chartWeek,
       last7DaysAmount,
+       agents: {
+   "available_agents": 2
+ }
     });
   } catch (error) {
     console.error(error);
