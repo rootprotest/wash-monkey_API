@@ -30,6 +30,16 @@ exports.createAddress = async (req, res) => {
 // Get all Address
 exports.getAllAddress = async (req, res) => {
     try {
+       const products = await Address.updateMany(
+      {}, // Empty filter to match all documents
+      {
+        $set: {
+          latitude:"12.9097456",
+         longitude: "77.6231403"
+        },
+      }
+    );
+
       const Addresslist = await Address.find();
       res.status(200).json({ success: true, Addresslist });
     } catch (error) {

@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const { assign } = require("nodemailer/lib/shared");
 
 const OrderSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
@@ -69,20 +70,23 @@ const OrderSchema = new mongoose.Schema({
     },
   ],
 
-  tasks: [
-    {
-      task_id: { type: String },
-      productId: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "Product",
-        required: true,
-      },
-      date: { type: Date }, // System date
-      assign_date: { type: Date }, // Scheduled task date
-      time_complete: { type: Date },
-      is_done: { type: Boolean, default: false },
+ tasks: [
+  {
+    task_id: { type: String }, // Assuming task_id is always needed
+    productId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Product",
+     
     },
-  ],
+    task_assign_person: { type: String, }, // Add required if necessary
+    assign_id: { type: String}, // Same here
+    date: { type: Date, default: Date.now }, // System date (default to now)
+    assign_date: { type: Date, }, // Scheduled task date
+    time_complete: { type: Date, default: null },
+    is_done: { type: Boolean, default: false },
+  }
+],
+
 });
 
 const Order = mongoose.model("Order", OrderSchema);

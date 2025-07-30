@@ -10,7 +10,9 @@ const AddressSchema = new mongoose.Schema({
   state: { type: String, required: true },
   pinCode: { type: String, required: true },
   email: { type: String, required: true },
-  typeAddress: { type: String, required: true } // Changed field name to camelCase
+  typeAddress: { type: String, required: true },
+  latitude: { type: Number, default: null },   // added latitude
+  longitude: { type: Number, default: null }   // added longitude
 });
 
 const Address = mongoose.model('Address', AddressSchema);

@@ -24,6 +24,8 @@ router.get('/Dashboardlist', OrderController.getAllDashboard);
 
 router.post('/orders', OrderController.createOrderWithRazorpay);
 
+router.post('/tasks-today', OrderController.getAllTaskListForTodays);
+
 router.post('/trackStatusById', OrderController.OrderStatusById);
 
 router.post('/ChangeOrder', OrderController.ChangeOrderStatusById);

@@ -5,7 +5,7 @@ const Address = require("../../models/Address/AddressModel");
 const moment = require("moment");
 const axios = require("axios");
 const Rating = require("../../models/AddRating/RatingModel");
-
+const ActivityLog = require('../../models/Activity/activity')
 const PAYMENTSTATUS = {
   1: "Completed",
   2: "Pending",
@@ -236,7 +236,7 @@ const onCreateOrder = async (addressId, codType, newOrderList) => {
 
 exports.createOrder = async (req, res) => {
   try {
-    const { userId, addressId, productIds, totalAmount, delivery, razorpay_payment_id, paymentStatus, applycoupon, quantity,tasks,bookingTime,walletamount } = req.body;
+    const { userId, addressId, productIds, totalAmount, delivery, razorpay_payment_id, paymentStatus, applycoupon, quantity, tasks, bookingTime, walletamount } = req.body;
 
     const newOrder = await Order.create({
       userId,
@@ -259,9 +259,9 @@ exports.createOrder = async (req, res) => {
       return res.status(404).json({ success: false, error: "User not found" });
     }
 
-const newPoints = Number(user.loyalty_point || 0) - Number(walletamount || 0);
-user.loyalty_point = Math.max(newPoints, 0);
-await user.save();
+    const newPoints = Number(user.loyalty_point || 0) - Number(walletamount || 0);
+    user.loyalty_point = Math.max(newPoints, 0);
+    await user.save();
 
 
 
@@ -467,35 +467,254 @@ exports.getAllTaskListForToday = async (req, res) => {
   }
 };
 
+const haversineDistance = (lat1, lon1, lat2, lon2) => {
+  const toRad = (value) => (value * Math.PI) / 180;
 
-// Update a specific order by ID
-exports.updateOrderById = async (req, res) => {
+  const R = 6371; // Earth radius in km
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+    Math.sin(dLon / 2) ** 2;
+
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+};
+
+exports.getAllTaskListForTodays = async (req, res) => {
   try {
-    const orderId = req.params.id;
-    const { status, delivery } = req.body;
+    const { latitude: userLat, longitude: userLng, assign_id } = req.body; // lat/lng from client
 
-    // Check if the Order exists
-    const existingOrder = await Order.findById(orderId);
+    console.log(assign_id, "assign_id");
 
-    if (!existingOrder) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Order not found" });
-    }
+    const todayStr = new Date().toDateString();
+    const allOrders = await Order.find();
 
-    // Update the Order fields
-    existingOrder.paymentStatus = status; // Assuming 'status' is the field you want to update
-    existingOrder.delivery = delivery; // Assuming 'status' is the field you want to update
+    const taskOrderPromises = allOrders.map(async (order) => {
+      if (!Array.isArray(order.tasks)) return null;
 
-    // Save the updated Order
-    const updatedOrder = await existingOrder.save();
+      const hasTodayTask = order.tasks.some((task) => {
+        const assignDate = new Date(task.assign_date).toDateString();
+        const isToday = assignDate === todayStr;
 
-    res.status(200).json({ success: true, order: updatedOrder });
+        if (assign_id) {
+          const isAssignedToUser = task.assign_id?.toString() === assign_id;
+          return isToday && isAssignedToUser;
+        } else {
+          const isStatusOk = order.paymentStatus === "Confirmed";
+          return isToday && isStatusOk;
+        }
+      });
+
+
+      if (!hasTodayTask) return null;
+
+      const address = await Address.findById(order.addressId);
+      const user = await User.findById(order.userId);
+
+      // const productPromises = order.productIds.map(productId => Product.findById(productId));
+      // const productsWithDetails = await Promise.all(productPromises);
+
+      let distanceInKm = null;
+      let googleMapUrl = null;
+
+      if (userLat && userLng && address.latitude && address.longitude) {
+        distanceInKm = haversineDistance(userLat, userLng, address.latitude, address.longitude).toFixed(2);
+googleMapUrl = `https://www.google.com/maps/dir/?api=1&origin=${userLat},${userLng}&destination=${address.latitude},${address.longitude}&travelmode=driving`;
+      }
+
+      return {
+        ...order._doc,
+        address,
+        user,
+        // products: productsWithDetails,
+        distanceInKm,
+        googleMapUrl
+      };
+    });
+
+    const ordersWithTodayTasks = await Promise.all(taskOrderPromises);
+    const filteredOrders = ordersWithTodayTasks.filter(order => order !== null);
+
+    res.status(200).json({ success: true, orders: filteredOrders });
   } catch (error) {
     console.error(error);
     res.status(500).json({ success: false, error: "Server error" });
   }
 };
+
+
+
+// Update a specific order by ID
+// exports.updateOrderById = async (req, res) => {
+//   try {
+//     const orderId = req.params.id;
+//     const { status, delivery } = req.body;
+
+//     // Check if the Order exists
+//     const existingOrder = await Order.findById(orderId);
+
+//     if (!existingOrder) {
+//       return res
+//         .status(404)
+//         .json({ success: false, message: "Order not found" });
+//     }
+
+//     // Update the Order fields
+//     existingOrder.paymentStatus = status; // Assuming 'status' is the field you want to update
+//     existingOrder.delivery = delivery; // Assuming 'status' is the field you want to update
+
+//     // Save the updated Order
+//     const updatedOrder = await existingOrder.save();
+
+//     res.status(200).json({ success: true, order: updatedOrder });
+//   } catch (error) {
+//     console.error(error);
+//     res.status(500).json({ success: false, error: "Server error" });
+//   }
+// };
+
+
+
+exports.updateOrderById = async (req, res) => {
+  try {
+    const orderId = req.params.id;
+
+    // Destructure request body
+    const {
+      status,
+      task_id,
+      task_assign_person,
+      userId,
+      taskTitle,
+      taskDescription
+    } = req.body;
+
+    console.log({
+      status,
+      task_id,
+      task_assign_person,
+      userId,
+      taskTitle,
+      taskDescription
+    });
+    
+    // Find the order
+    const existingOrder = await Order.findById(orderId);
+    if (!existingOrder) {
+      return res.status(404).json({
+        success: false,
+        message: "Order not found",
+      });
+    }
+
+    // Update order status if provided
+    if (status) existingOrder.paymentStatus = status;
+
+    let updatedTask = null;
+
+    // Update task if task_id is provided
+    if (task_id && task_assign_person) {
+      const taskIndex = existingOrder.tasks.findIndex(
+        (task) => task.task_id === task_id
+      );
+
+      if (taskIndex === -1) {
+        return res.status(404).json({
+          success: false,
+          message: "Task not found with the given ID",
+        });
+      }
+
+      try {
+        // Mark task complete and assign
+        existingOrder.tasks[taskIndex].is_done = true;
+        existingOrder.tasks[taskIndex].time_complete = new Date();
+        existingOrder.tasks[taskIndex].assign_id = userId;
+        existingOrder.tasks[taskIndex].task_assign_person = task_assign_person;
+
+        updatedTask = existingOrder.tasks[taskIndex];
+      } catch (taskError) {
+        console.error("Error updating task:", taskError);
+        return res.status(500).json({
+          success: false,
+          message: "Failed to update task inside order",
+        });
+      }
+    }
+
+    // Save the updated order
+    let updatedOrder;
+    try {
+      updatedOrder = await existingOrder.save();
+    } catch (saveError) {
+      console.error("Error saving updated order:", saveError);
+      return res.status(500).json({
+        success: false,
+        message: "Failed to save updated order",
+      });
+    }
+
+    // Log in ActivityLog
+if (userId && updatedTask && (status === "Accepted" || status === "Completed")) {
+  try {
+    const date = require('moment')().format("YYYY-MM-DD");
+    const log = await ActivityLog.findOne({ userId, date });
+
+    if (log) {
+      const existingTask = log.tasks.find(task => task.taskId === updatedTask.task_id);
+
+      if (existingTask) {
+        // Update existing task
+        existingTask.title = taskTitle || `${status} Task ${updatedTask.task_id}`;
+        existingTask.description = taskDescription || `Task ${status.toLowerCase()} in Order ${orderId}`;
+        existingTask.status = status;
+        existingTask.assignedAt = new Date();
+
+        if (status === "Completed") {
+          existingTask.completedAt = new Date();
+        }
+      } else {
+        // Add new task
+        log.tasks.push({
+          taskId: updatedTask.task_id,
+          title: taskTitle || `${status} Task ${updatedTask.task_id}`,
+          description: taskDescription || `Task ${status.toLowerCase()} in Order ${orderId}`,
+          status: status,
+          assignedAt: new Date(),
+          ...(status === "Completed" && { completedAt: new Date() }),
+        });
+      }
+
+      await log.save();
+    }
+  } catch (logError) {
+    console.error("Error logging activity:", logError);
+    // Don't throw, since it's non-blocking
+  }
+}
+
+
+    
+
+    // Respond with updated order
+    res.status(200).json({
+      success: true,
+      message: "Order updated successfully",
+      order: updatedOrder,
+    });
+  } catch (error) {
+    console.error("Error updating order:", error);
+    res.status(500).json({
+      success: false,
+      error: "Server error",
+    });
+  }
+};
+
+
 
 // Delete a specific order by ID
 exports.deleteOrderById = async (req, res) => {
@@ -633,32 +852,32 @@ exports.getAllDashboard = async (req, res) => {
         months_order,
         yearly_order,
         total_order,
-        available_agents:0,
-        pending_order:0,
-        completed_order:10,
-          "categories": {
-      "exterior": 10,
-      "interior": 7,
-      "compensation": 5
-   },
-   "on_demand_orders": {
-      "total": 20,
-      "completed": 15,
-      "pending": 5
-   },
-   "subscription_orders": {
-      "total": 30,
-      "completed": 25,
-      "pending": 5
-   }
+        available_agents: 0,
+        pending_order: 0,
+        completed_order: 10,
+        "categories": {
+          "exterior": 10,
+          "interior": 7,
+          "compensation": 5
+        },
+        "on_demand_orders": {
+          "total": 20,
+          "completed": 15,
+          "pending": 5
+        },
+        "subscription_orders": {
+          "total": 30,
+          "completed": 25,
+          "pending": 5
+        }
       },
       sales,
       chartYears,
       // chartWeek,
       last7DaysAmount,
-       agents: {
-   "available_agents": 2
- }
+      agents: {
+        "available_agents": 2
+      }
     });
   } catch (error) {
     console.error(error);
