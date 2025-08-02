@@ -514,8 +514,8 @@ exports.getAllTaskListForTodays = async (req, res) => {
       const address = await Address.findById(order.addressId);
       const user = await User.findById(order.userId);
 
-      // const productPromises = order.productIds.map(productId => Product.findById(productId));
-      // const productsWithDetails = await Promise.all(productPromises);
+      const productPromises = order.productIds.map(productId => Product.findById(productId));
+      const productsWithDetails = await Promise.all(productPromises);
 
       let distanceInKm = null;
       let googleMapUrl = null;
@@ -529,7 +529,7 @@ googleMapUrl = `https://www.google.com/maps/dir/?api=1&origin=${userLat},${userL
         ...order._doc,
         address,
         user,
-        // products: productsWithDetails,
+        products: productsWithDetails,
         distanceInKm,
         googleMapUrl
       };
