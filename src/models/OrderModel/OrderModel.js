@@ -11,6 +11,7 @@ const OrderSchema = new mongoose.Schema({
   productIds: [
     { type: mongoose.Schema.Types.ObjectId, ref: "Product", required: true },
   ],
+  
   totalAmount: { type: Number, required: true },
   paymentStatus: {
     type: String,
@@ -50,7 +51,8 @@ const OrderSchema = new mongoose.Schema({
     type: String,
     enum: ["Cash", "Card", "Online"], // Or replace with ["Home Delivery", "Online"] if it refers to delivery method
     default: "Online",
-  },
+},
+interior: { type: Number ,default: 0},
   createdAt: { type: Date, default: Date.now },
   razorpay_payment_id: { type: String, required: true },
   exta_message: { type: String },
@@ -84,6 +86,9 @@ const OrderSchema = new mongoose.Schema({
     assign_date: { type: Date, }, // Scheduled task date
     time_complete: { type: Date, default: null },
     is_done: { type: Boolean, default: false },
+    interior: { type: Boolean, default: false },
+    exterior: { type: Boolean, default: true },
+
   }
 ],
 

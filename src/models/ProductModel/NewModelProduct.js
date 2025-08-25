@@ -23,9 +23,13 @@ const ProductSchema = new mongoose.Schema({
   is_hot: { type: Boolean, default: false },
   is_recommended: { type: Boolean, default: false },
   days: { type: Number ,default: 1},
+  interior: { type: Number ,default: 0},
+  exterior: { type: Number ,default: 0},
+
 
   created_at: { type: Date, default: Date.now },
   updated_at: { type: Date, default: Date.now }
+
 });
 
 // Optional: Add pre-save hook to update `updated_at` on every save

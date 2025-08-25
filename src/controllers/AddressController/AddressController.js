@@ -3,8 +3,8 @@ const Address = require('../../models/Address/AddressModel');
 // Create a new address
 exports.createAddress = async (req, res) => {
   try {
-    const { userId, fullName, phone, companyName, street, city, state, pinCode, email, typeAddress } = req.body;
-    console.log({ userId, fullName, phone, companyName, street, city, state, pinCode, email, typeAddress });
+    const { userId, fullName, phone, companyName, street, city, state, pinCode, email, typeAddress,latitude,longitude } = req.body;
+    console.log({ userId, fullName, phone, companyName, street, city, state, pinCode, email, typeAddress,longitude,latitude });
     
 
     const newAddress = await Address.create({
@@ -18,6 +18,8 @@ exports.createAddress = async (req, res) => {
       pinCode,
       email,
       typeAddress,
+      latitude,
+      longitude
     });
 
     res.status(200).json({ success: true, address: newAddress });

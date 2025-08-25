@@ -7,6 +7,8 @@ router.post('/createOrder', OrderController.createOrder);
 
 router.put('/orderUpdate/:id', OrderController.updateOrderById);
 
+router.put('/taskupdateOrderById/:id', OrderController.taskupdateOrderById);
+
 router.delete('/deleteOrder/:id', OrderController.deleteOrderById);
 
 router.get('/orderGetById/:id', OrderController.getByOrderID);

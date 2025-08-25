@@ -236,7 +236,7 @@ const onCreateOrder = async (addressId, codType, newOrderList) => {
 
 exports.createOrder = async (req, res) => {
   try {
-    const { userId, addressId, productIds, totalAmount, delivery, razorpay_payment_id, paymentStatus, applycoupon, quantity, tasks, bookingTime, walletamount } = req.body;
+    const { userId, addressId, productIds, totalAmount, delivery, razorpay_payment_id, paymentStatus, applycoupon, quantity, tasks, bookingTime, walletamount,interior } = req.body;
 
     const newOrder = await Order.create({
       userId,
@@ -250,7 +250,8 @@ exports.createOrder = async (req, res) => {
       quantity,
       tasks,
       bookingTime,
-      walletamount
+      walletamount,
+      interior
     });
 
     const user = await User.findById(userId);
@@ -710,6 +711,58 @@ if (userId && updatedTask && (status === "Accepted" || status === "Completed")) 
     res.status(500).json({
       success: false,
       error: "Server error",
+    });
+  }
+};
+
+
+exports.taskupdateOrderById = async (req, res) => {
+  try {
+    const orderId = req.params.id;
+    const { task_id } = req.body; // now an array of task IDs
+
+    if (!Array.isArray(task_id) || task_id.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Task IDs are required",
+      });
+    }
+
+    const existingOrder = await Order.findById(orderId);
+    if (!existingOrder) {
+      return res.status(404).json({
+        success: false,
+        message: "Order not found",
+      });
+    }
+
+    // Loop through task IDs and update each task
+    task_id.forEach((id) => {
+      const taskIndex = existingOrder.tasks.findIndex(task => task.task_id === id);
+      if (taskIndex !== -1) {
+        existingOrder.tasks[taskIndex].interior = true;
+        existingOrder.tasks[taskIndex].exterior = false;
+      }
+    });
+
+    // Decrement the order-level interior count by number of tasks updated
+    const tasksUpdated = task_id.length;
+    if (typeof existingOrder.interior === 'number') {
+      existingOrder.interior = Math.max(existingOrder.interior - tasksUpdated, 0);
+    }
+
+    const updatedOrder = await existingOrder.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Tasks updated successfully",
+      order: updatedOrder,
+    });
+  } catch (error) {
+    console.error("Error updating tasks:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error",
     });
   }
 };

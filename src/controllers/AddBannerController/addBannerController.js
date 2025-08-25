@@ -74,7 +74,7 @@ exports.updateBannerItem = async (req, res) => {
 
     // Update image URLs only if new files are uploaded
     if (imageUrl) {
-      existingBannerItem.imageUrl = imageUrl;
+      existingBannerItem.imageUrl = imageUrl[0];
     }
     if (bannerImgMobile) {
       existingBannerItem.banner_img_mob = bannerImgMobile;

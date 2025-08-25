@@ -83,6 +83,8 @@ exports.getAllProducts = async (req, res) => {
     return res.status(400).json({ success: false, error: "Invalid 'lang' parameter" });
   }
 
+    
+    
 
   try {
     // Implement pagination and limit the number of records returned
@@ -472,7 +474,9 @@ exports.updateProductById = async (req, res) => {
       is_hot,
       is_recommended,
       days,
-      quantity
+      quantity,
+      interior,
+      exterior
     } = req.body;
 
     // Check if the Product exists
@@ -510,6 +514,8 @@ exports.updateProductById = async (req, res) => {
     if (is_recommended !== undefined && is_recommended !== null) existingProduct.is_recommended = is_recommended;
     if (days !== undefined && days !== null) existingProduct.days = days;
     if (quantity !== undefined && quantity !== null) existingProduct.quantity = quantity;
+    if (interior !== undefined && interior !== null) existingProduct.interior = interior;
+    if (exterior !== undefined && exterior !== null) existingProduct.exterior = exterior;
     if (lang !== undefined && lang !== null) existingProduct.lang = lang;
     if (!isNaN(parseFloat(qty)) && isFinite(qty)) existingProduct.qty = qty; // Check if qty is a valid number
     if (key_word !== undefined && key_word !== null) existingProduct.key_word = key_word;
