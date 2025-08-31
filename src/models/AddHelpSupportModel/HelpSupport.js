@@ -19,18 +19,18 @@ const helpSupportSchema = new mongoose.Schema({
   userId: {
     type: mongoose.Schema.Types.ObjectId, // ✅ Reference to the User model
     ref: 'User',
-    required: true,
   },
   issue: {
     type: String,
-    required: true,
   },
   subIssue: {
     type: String,
   },
   description: {
     type: String,
-    required: true,
+  },
+details: {
+    type: Object, // ✅ Changed from String to Object
   },
   submittedAt: {
     type: Date,

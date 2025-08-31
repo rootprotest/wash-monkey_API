@@ -196,7 +196,7 @@ const sendOTP = async (mobileNumber, name = "User", appName = "MyApp", otp) => {
 
 module.exports = {
   login: async (req, res) => {
-    const { email, password, mobilenumber, google_signin, fcm_token } = req.body;
+    const { email, password, mobilenumber, google_signin, fcm_token,isMobileLogin } = req.body;
 
     try {
       // Find user by username
@@ -237,7 +237,7 @@ module.exports = {
         console.log(!user.verified, user.UserType === "3");
         // Check if user exists
         if (user.UserType === "3") {
-          if (!user.verified) {
+          if (!user.verified || isMobileLogin) {
             // Generate OTP (6-digit)
             const otp = Math.floor(100000 + Math.random() * 900000).toString();
 

@@ -2,9 +2,12 @@ const HelpSupport = require('../../models/AddHelpSupportModel/HelpSupport');
 
 exports.createSupportTicket = async (req, res) => {
   try {
-    const { userId, issue, subIssue, description } = req.body;
+    const { userId, issue, subIssue, description,details } = req.body;
 
-    if (!userId || !issue || !description) {
+    console.log({ userId, issue, subIssue, description,details });
+    
+
+    if (!userId) {
       return res.status(400).json({ success: false, message: 'Missing required fields' });
     }
 
@@ -12,7 +15,8 @@ exports.createSupportTicket = async (req, res) => {
       userId,
       issue,
       subIssue,
-      description
+      description,
+      details
     });
 
     res.status(200).json({ success: true, ticket: newTicket });

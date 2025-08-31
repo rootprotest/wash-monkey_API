@@ -1,7 +1,6 @@
 // controllers/AddCartController.js
 const BannerCard = require("../../models/BannerCard/BannerModel");
 const Category = require("../../models/Category/Category");
-const Brand = require("../../models/Brand/BrandModel");
 const Product = require("../../models/ProductModel/NewModelProduct");
 const SubBrands = require("../../models/SubBrand/SubBrandModel");
 const { BASEURL } = require("../../utils/Constants");
@@ -128,12 +127,11 @@ exports.getAllBanners = async (req, res) => {
     }
     const banners = await BannerCard.find({ lang: LANGID[lang] });
 
-    const Brands = await Brand.find({ lang: LANGID[lang] });
 
     const Categorys = await Category.find({ lang: LANGID[lang] });
 
 
-    res.status(200).json({ success: true, banners, Brands, Categorys });
+    res.status(200).json({ success: true, banners, Categorys });
   } catch (error) {
     console.error(error);
     res.status(500).json({ success: false, error: "Server error" });
@@ -161,53 +159,7 @@ exports.getBannerslist = async (req, res) => {
 };
 // Get all banner product items
 
-exports.getAllBannerbyproduct = async (req, res) => {
-  try {
-    const { lang } = req.query;
 
-    // Validate 'lang' parameter
-    if (!lang || !LANGID[lang]) {
-      return res
-        .status(400)
-        .json({ success: false, error: "Invalid 'lang' parameter" });
-    }
-
-    // Fetch brands based on the 'lang' parameter
-    const Brands = await Brand.find({ lang: LANGID[lang] });
-
-
-    // Fetch products and subbrands for each brand asynchronously using Promise.all
-    const productsPromises = Brands.map(async (brand) => {
-      console.log(`Fetching products for brand_id: ${brand._id}`);
-
-
-
-      // Fetch subbrands for the current brand
-      const subbrand = await SubBrands.find({
-        lang: LANGID[lang],
-        brand_id: brand._id,
-      });
-
-      // Fetch products for the current brand
-      const products = await Product.find({
-        brand_id: brand._id,
-      });
-
-      // Log the products found (for debugging)
-      console.log(`Products found for brand_id ${brand._id}:`, products);
-
-      return { brand, products, subbrand };
-    });
-
-    const productList = await Promise.all(productsPromises);
-
-    // Return the product list as a JSON response
-    res.status(200).json({ success: true, productList });
-  } catch (error) {
-    console.error('Error in getAllBannerbyproduct:', error);
-    res.status(500).json({ success: false, error: "Server error" });
-  }
-};
 
 
 

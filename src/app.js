@@ -12,12 +12,9 @@ const multer = require('multer');
 const authRoutes = require("./routes/authRoutes");
 const UserController = require("./routes/UserRoutes/userRoutes");
 const categoryRoutes = require("./routes/categoryRoutes/categoryRoutes");
-const brandRoutes = require("./routes/BrandRoutes/brandRoutes");
-const SubBrandRoutes = require("./routes/SubBrandRoutes/subBrandRoutes")
 const productRoutes = require("./routes/ProductRoutes/productRoutes");
 const couponRoutes = require("./routes/couponRoutes/CouponRouter");
 const addressRoutes = require("./routes/AddressRoutes/addressRoutes");
-const addcartRoutes = require("./routes/AddCartRoutes/addCartRoutes");
 const orderRoutes = require("./routes/OrderRoutes/orderRoutes");
 const BannerRoutes = require("./routes/BannerRouters/BannerRoutes");
 const EmployeeRoutes = require("./routes/AddEmployess/addEmployeesRoutes")
@@ -25,7 +22,6 @@ const FAQRoutes = require("./routes/AddFaqRoutes/faqRoutes")
 const RatingRoute = require("./routes/AddRatingRoutes/RatingRoutes")
 const EventRoute = require("./routes/AddEventRoutes/EventRoutes")
 const BlogRoutes = require("./routes/AddBlogsRoutes/BlogRoutes")
-const WishlistRoutes = require("./routes/addwishlistRouters/WishlistRoutes")
 const User = require("../src/models/UserModel/User");
 const ReviewRoutes = require("./routes/AddRatingRoutes/RatingRoutes")
 const VehicleRoutes = require("./routes/AddVehicleRoutes/VehicleRoutes")
@@ -77,13 +73,9 @@ app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
 app.use("/api/auth", authRoutes);
 app.use("/api/user", UserController);
 app.use("/api/category", categoryRoutes);
-app.use("/api/brand", brandRoutes);
-app.use("/api/sub-brand", SubBrandRoutes);
 app.use("/api/product", productRoutes);
 app.use("/api/coupon", couponRoutes);
 app.use("/api/address", addressRoutes);
-app.use("/api/addcart", addcartRoutes);
-app.use("/api/wishlist", WishlistRoutes);
 app.use("/api/order", orderRoutes);
 app.use("/api/header", BannerRoutes);
 app.use("/api/staff", EmployeeRoutes);

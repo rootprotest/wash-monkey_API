@@ -14,7 +14,6 @@ router.get('/allbanner', BannerController.getAllBanners);
 router.get('/getbannerlist', BannerController.getBannerslist);
 
 //Get all Lang product
-router.get('/allbrandproduct', BannerController.getAllBannerbyproduct);
 
 // Get a specific Brand by ID
 router.get('/banner/:id', BannerController.getBannerById);
