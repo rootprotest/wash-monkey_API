@@ -178,15 +178,17 @@ const sendEmail = async (email, otp) => {
 };
 
 const sendOTP = async (mobileNumber, name = "User", appName = "MyApp", otp) => {
-  const apiKey = "5q4tMF4PhzaIw91G";
-  const senderId = "MDTDMO";
-  const message = `Dear ${name}, Your OTP for login to ${appName} is ${otp}. Valid for 30 minutes. Please do not share this OTP. Regards, My Dreams Technology Team`;
+  const apiKey = "6FlAGamNys0B4OxZ";
+  const senderId = "WASHMO";
+  const message = `Dear ${name}, Your One Time Password ${otp} is valid for 10 minutes. Do not share this code with anyone. Visit https://washmonkey.in - WASHIMONKI`;
 
   const url = `http://app.mydreamstechnology.in/vb/apikey.php?apikey=${apiKey}&senderid=${senderId}&number=${mobileNumber}&message=${encodeURIComponent(message)}`;
 
   try {
     const response = await axios.get(url);
     console.log("SMS Sent:", response.data);
+    console.log("Url:", url);
+
     return response.data;
   } catch (error) {
     console.error("SMS sending failed:", error.message);
@@ -196,7 +198,7 @@ const sendOTP = async (mobileNumber, name = "User", appName = "MyApp", otp) => {
 
 module.exports = {
   login: async (req, res) => {
-    const { email, password, mobilenumber, google_signin, fcm_token,isMobileLogin } = req.body;
+    const { email, password, mobilenumber, google_signin, fcm_token, isMobileLogin } = req.body;
 
     try {
       // Find user by username
@@ -232,7 +234,7 @@ module.exports = {
             .status(401)
             .json({ success: false, message: "Invalid credentials" });
         }
-       
+
 
         console.log(!user.verified, user.UserType === "3");
         // Check if user exists
@@ -244,8 +246,8 @@ module.exports = {
             // Save OTP in user record (if you're storing it)
             user.OTPNumber = otp;
             await user.save();
-            console.log(otp,"otp");
-            
+            console.log(otp, "otp");
+
             // Send OTP via SMS
             await sendOTP(user.mobilenumber, user.name || "User", "My Dreams Technology", otp);
 
@@ -256,16 +258,16 @@ module.exports = {
               UserType: user.UserType,
             });
           }
-           if (!mobilenumber) {
-  const isPasswordValid = await bcrypt.compare(password, user.password);
-  console.log(isPasswordValid,"isPasswordValid");
-  
-  if (!isPasswordValid) {
-    return res
-      .status(401)
-      .json({ success: false, message: "Password Invalid" });
-  }
-}
+          if (!mobilenumber) {
+            const isPasswordValid = await bcrypt.compare(password, user.password);
+            console.log(isPasswordValid, "isPasswordValid");
+
+            if (!isPasswordValid) {
+              return res
+                .status(401)
+                .json({ success: false, message: "Password Invalid" });
+            }
+          }
 
           // If already verified
           return res.status(200).json({
@@ -329,7 +331,7 @@ module.exports = {
         password,
         mobilenumber,
         UserType,
-       
+
         lang,
         google_signin
       } = req.body;
@@ -383,7 +385,7 @@ module.exports = {
         return res.status(200).json(response);
       }
 
-     
+
 
       await sendEmail(email, otp);
 
@@ -392,7 +394,7 @@ module.exports = {
         user: newUser,
       };
 
-     
+
 
 
       res.status(200).json(response);
@@ -455,7 +457,7 @@ module.exports = {
       await user.save();
 
       // Send reset email
-      await sendResetEmail(user.email, resetToken,"root1223");
+      await sendResetEmail(user.email, resetToken, "root1223");
 
       res
         .status(200)
@@ -529,7 +531,7 @@ module.exports = {
 
       // Reset the OTP after successful verification
       user.OTPNumber = null;
-      user.verified = true;
+      user.verified = false;
       await user.save();
 
       return res
@@ -645,28 +647,28 @@ module.exports = {
           .json({ success: false, message: "Account not Verified" });
       }
 
-     // Fetch orders by status
-   const [completedOrders, pendingOrders, inProgressOrders] = await Promise.all([
-  Order.countDocuments({ userId, paymentStatus: "Completed" }),
-  Order.countDocuments({ userId, paymentStatus: "Confirmed" }),
-  Order.countDocuments({ userId, paymentStatus: "InProgress" }),
-]);
+      // Fetch orders by status
+      const [completedOrders, pendingOrders, inProgressOrders] = await Promise.all([
+        Order.countDocuments({ userId, paymentStatus: "Completed" }),
+        Order.countDocuments({ userId, paymentStatus: "Confirmed" }),
+        Order.countDocuments({ userId, paymentStatus: "InProgress" }),
+      ]);
 
-// Convert userData to a plain JavaScript object if it's a Mongoose Document
-const userObj = userData.toObject();
+      // Convert userData to a plain JavaScript object if it's a Mongoose Document
+      const userObj = userData.toObject();
 
-// Add order counts inside user object
-userObj.orders = {
-  completed: completedOrders,
-  pending: pendingOrders,
-  inProgress: inProgressOrders,
-  total: completedOrders + pendingOrders + inProgressOrders
-};
+      // Add order counts inside user object
+      userObj.orders = {
+        completed: completedOrders,
+        pending: pendingOrders,
+        inProgress: inProgressOrders,
+        total: completedOrders + pendingOrders + inProgressOrders
+      };
 
-return res.status(200).json({
-  success: true,
-  User: userObj,
-});
+      return res.status(200).json({
+        success: true,
+        User: userObj,
+      });
 
     } catch (error) {
       console.error(error);

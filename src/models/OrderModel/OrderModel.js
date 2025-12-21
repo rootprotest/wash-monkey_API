@@ -11,7 +11,7 @@ const OrderSchema = new mongoose.Schema({
   productIds: [
     { type: mongoose.Schema.Types.ObjectId, ref: "Product", required: true },
   ],
-  
+
   totalAmount: { type: Number, required: true },
   paymentStatus: {
     type: String,
@@ -31,19 +31,19 @@ const OrderSchema = new mongoose.Schema({
       "Out for Delivery",
       "Scheduled",
       "Scheduled",
-  "Accepted",
-  "Technician Assigned",
-  "En Route",
-  "Arrived",
-  "In Progress",
-  "Completed",
-  "Payment Pending",
-  "Payment Received",
-  "Cancelled by User",
-  "Cancelled by Technician",
-  "Rescheduled",
-  "No Show",
-  "Awaiting Review"
+      "Accepted",
+      "Technician Assigned",
+      "En Route",
+      "Arrived",
+      "In Progress",
+      "Completed",
+      "Payment Pending",
+      "Payment Received",
+      "Cancelled by User",
+      "Cancelled by Technician",
+      "Rescheduled",
+      "No Show",
+      "Awaiting Review"
     ],
     default: "Pending",
   },
@@ -51,10 +51,10 @@ const OrderSchema = new mongoose.Schema({
     type: String,
     enum: ["Cash", "Card", "Online"], // Or replace with ["Home Delivery", "Online"] if it refers to delivery method
     default: "Online",
-},
-interior: { type: Number ,default: 0},
+  },
+  interior: { type: Number, default: 0 },
   createdAt: { type: Date, default: Date.now },
-  razorpay_payment_id: { type: String, required: true },
+  razorpay_payment_id: { type: String,  unique: true, },
   exta_message: { type: String },
   exta_add_item: { type: String },
   applycoupon: { type: String },
@@ -72,25 +72,25 @@ interior: { type: Number ,default: 0},
     },
   ],
 
- tasks: [
-  {
-    task_id: { type: String }, // Assuming task_id is always needed
-    productId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Product",
-     
-    },
-    task_assign_person: { type: String, }, // Add required if necessary
-    assign_id: { type: String}, // Same here
-    date: { type: Date, default: Date.now }, // System date (default to now)
-    assign_date: { type: Date, }, // Scheduled task date
-    time_complete: { type: Date, default: null },
-    is_done: { type: Boolean, default: false },
-    interior: { type: Boolean, default: false },
-    exterior: { type: Boolean, default: true },
+  tasks: [
+    {
+      task_id: { type: String }, // Assuming task_id is always needed
+      productId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Product",
 
-  }
-],
+      },
+      task_assign_person: { type: String, }, // Add required if necessary
+      assign_id: { type: String }, // Same here
+      date: { type: Date, default: Date.now }, // System date (default to now)
+      assign_date: { type: Date, }, // Scheduled task date
+      time_complete: { type: Date, default: null },
+      is_done: { type: Boolean, default: false },
+      interior: { type: Boolean, default: false },
+      exterior: { type: Boolean, default: true },
+
+    }
+  ],
 
 });
 

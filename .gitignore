@@ -2,7 +2,9 @@
 node_modules/
 .next/
 out/
-
+key_f6aab567467b4f26864f627aa989a7b6.pem
+config.json
+privateKey.pem
 # Environment variables
 .env*
 .env.local

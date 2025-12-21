@@ -27,6 +27,7 @@ const ReviewRoutes = require("./routes/AddRatingRoutes/RatingRoutes")
 const VehicleRoutes = require("./routes/AddVehicleRoutes/VehicleRoutes")
 const helpSupportRoutes = require('./routes/AddHelpSupport/helpSupportRoutes');
 const activityList = require('./routes/AddActivity/activity');
+// const hdfcGateway = require("./routes/AddHdfc/hdfcGateway");
 
 
 
@@ -87,6 +88,8 @@ app.use("/api/reviews",ReviewRoutes);
 app.use('/api/vehicles', VehicleRoutes);
 app.use('/api/support', helpSupportRoutes);
 app.use('/api/activity', activityList);
+// app.use("/api/hdfc", hdfcGateway);
+
 
 
 app.get("/reset", async (req, res) => {
