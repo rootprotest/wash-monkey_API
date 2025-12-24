@@ -101,7 +101,7 @@ const paymentPageClientId = config.PAYMENT_PAGE_CLIENT_ID;
 // Initialize Juspay SDK
 const juspay = new Juspay({
   merchantId: config.MERCHANT_ID,
-  baseUrl: SANDBOX_BASE_URL,
+  baseUrl: PRODUCTION_BASE_URL,
   jweAuth: {
     keyId: config.KEY_UUID,
     publicKey,
