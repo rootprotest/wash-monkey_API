@@ -41,7 +41,27 @@ const User = require("../src/models/UserModel/User");
 const app = express();
 
 // ------------------- MIDDLEWARE -------------------
-app.use(cors({ origin: FRONTEND_URL, credentials: true }));
+const allowedOrigins = [
+  "https://washmonkey.in",
+  "https://washmonkeyclean.web.app",
+];
+
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // ✅ Allow mobile apps (no origin)
+      if (!origin) return callback(null, true);
+
+      // ✅ Allow web apps
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      return callback(new Error("Not allowed by CORS"));
+    },
+    credentials: true,
+  })
+);
 app.use(bodyParser.json({ limit: "50mb" }));
 app.use(bodyParser.urlencoded({ limit: "50mb", extended: true }));
 app.use(cookieParser());
@@ -86,15 +106,7 @@ if (NODE_ENV === "production") {
   });
 }
 
-if (NODE_ENV === "production") {
-  app.use((req, res, next) => {
-    const allowedHost = new URL(FRONTEND_URL).host; // e.g., washmonkey.in
-    if (req.headers.host !== allowedHost) {
-      return res.status(403).send("Forbidden");
-    }
-    next();
-  });
-}
+
 // ------------------- MONGOOSE -------------------
 mongoose.connect(process.env.MONGODB_URI, { useNewUrlParser: true, useUnifiedTopology: true });
 
