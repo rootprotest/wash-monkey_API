@@ -284,92 +284,63 @@ exports.getAllOrder = async (req, res) => {
     const userId = req.params.id;
     const { status } = req.query;
 
-    // Create a dynamic filter based on status
     const filter = status
       ? { userId, paymentStatus: PAYMENTSTATUS[status] }
       : { userId };
 
-    // Fetch all orders for the user
-    const orderList = await Order.find(filter);
+    const orders = await Order.find(filter)
+      .select("_id userId paymentStatus createdAt totalAmount tasks") // 👈 ONLY NEEDED FIELDS
+      .sort({ createdAt: -1 })
+      .lean();
 
-    // Create an array to store promises for fetching product details
-    const orderPromises = orderList.map(async (order) => {
-      // Fetch address details
-      const address = await Address.findById(order.addressId);
-
-      // Fetch user details
-      const user = await User.findById(order.userId);
-
-      // Fetch product details for each order item
-      const productPromises = order.productIds.map(async (productId) => {
-        const product = await Product.findById(productId);
-        return product;
-      });
-
-      // Wait for all promises to resolve
-      const productsWithDetails = await Promise.all(productPromises);
-
-      return { ...order._doc, address, user, products: productsWithDetails };
-    });
-
-    // Wait for all promises to resolve
-    const ordersWithDetails = await Promise.all(orderPromises);
-
-    res.status(200).json({ success: true, orders: ordersWithDetails });
+    res.status(200).json({ success: true, orders });
   } catch (error) {
     console.error(error);
     res.status(500).json({ success: false, error: "Server error" });
   }
 };
+
+
 exports.getByOrderID = async (req, res) => {
   try {
-    const orderId = req.params.id;
+    const order = await Order.findById(req.params.id).lean();
 
-    // Find order by order ID
-    const order = await Order.findById(orderId);
-
-    // Check if order exists
     if (!order) {
       return res.status(404).json({ success: false, message: "Order not found" });
     }
 
-    // Fetch address details
-    const address = await Address.findById(order.addressId);
+    const [address, user, products, ratings] = await Promise.all([
+      Address.findById(order.addressId).lean(),
+      User.findById(order.userId).lean(),
+      Product.find({ _id: { $in: order.productIds } }).lean(),
+      Rating.find({
+        productId: { $in: order.productIds },
+        userId: order.userId
+      }).sort({ createdAt: -1 }).lean()
+    ]);
 
-    // Fetch user details
-    const user = await User.findById(order.userId);
-
-    // Fetch product details for each order item
-    const productPromises = order.productIds.map(async (productId) => {
-      let product = await Product.findById(productId);
-      // Fetch ratings for the product
-      const ratings = await Rating.find({ productId, userId: order.userId });
-
-      // Check if ratings exist and contain valid values
-      if (ratings.length > 0) {
-        // Merge product and ratings
-        product = { ...product.toObject(), ratings };
-      } else {
-        // Set ratings to null if not found
-        product.ratings = null;
-      }
-
-      return product;
+    // Group ratings by productId
+    const ratingMap = {};
+    ratings.forEach(r => {
+      const key = r.productId.toString();
+      if (!ratingMap[key]) ratingMap[key] = [];
+      ratingMap[key].push(r);
     });
 
-    // Wait for all promises to resolve
-    const productsWithDetails = await Promise.all(productPromises);
+    const productsWithRatings = products.map(p => ({
+      ...p,
+      ratings: ratingMap[p._id.toString()] || null
+    }));
 
-    // Construct the response object with order details and related entities
-    const orderWithDetails = {
-      _id: order._id,
-      address,
-      user,
-      products: productsWithDetails
-    };
-
-    // Return the response
-    res.status(200).json({ success: true, order: orderWithDetails });
+    res.status(200).json({
+      success: true,
+      order: {
+        ...order,
+        address,
+        user,
+        products: productsWithRatings
+      }
+    });
   } catch (error) {
     console.error(error);
     res.status(500).json({ success: false, error: "Server error" });
@@ -382,7 +353,7 @@ exports.getByOrderID = async (req, res) => {
 exports.getAllOrderList = async (req, res) => {
   try {
     // Fetch all orders for the user
-    const orderList = await Order.find();
+    const orderList = await Order.find().sort({ createdAt: -1 });
 
 
 
