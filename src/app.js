@@ -127,7 +127,13 @@ app.get("/", (req, res) => {
     res.send("Server running in development mode!");
   }
 });
-
+const resetCsp = (req, res, next) => {
+  res.setHeader(
+    "Content-Security-Policy",
+    "default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'"
+  );
+  next();
+};
 // ------------------- ROUTES -------------------
 app.use("/api/auth", authRoutes);
 app.use("/api/user", UserController);
@@ -152,7 +158,7 @@ app.use("/api/activity", activityList);
 // =======================
 // GET: Reset Password Page
 // =======================
-app.get("/reset", async (req, res) => {
+app.get("/reset", resetCsp, async (req, res) => {
   const { token } = req.query;
 
   if (!token) {
@@ -170,91 +176,62 @@ app.get("/reset", async (req, res) => {
     }
 
     res.send(`
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>Reset Password</title>
-          <style>
-            body {
-              font-family: Arial, sans-serif;
-              margin: 50px;
-            }
-            form {
-              max-width: 400px;
-              margin: auto;
-            }
-            input {
-              padding: 8px;
-              margin: 5px 0;
-              width: 100%;
-            }
-            button {
-              padding: 10px;
-              background-color: #28a745;
-              color: white;
-              border: none;
-              cursor: pointer;
-            }
-            .password-container {
-              position: relative;
-            }
-            .toggle-password {
-              position: absolute;
-              top: 50%;
-              right: 10px;
-              transform: translateY(-50%);
-              cursor: pointer;
-              font-size: 16px;
-              color: #555;
-            }
-          </style>
-        </head>
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Reset Password</title>
+  <style>
+    body { font-family: Arial; margin: 40px; }
+    form { max-width: 400px; margin: auto; }
+    input { width: 100%; padding: 10px; margin: 8px 0; }
+    button { padding: 10px; background: #28a745; color: #fff; border: none; width: 100%; }
+    .password-container { position: relative; }
+    .toggle-password {
+      position: absolute;
+      top: 50%;
+      right: 12px;
+      transform: translateY(-50%);
+      cursor: pointer;
+      font-size: 18px;
+    }
+  </style>
+</head>
 
-        <body>
-          <h2>Reset Your Password</h2>
+<body>
+  <h2>Reset Your Password</h2>
 
-          <form method="POST" action="/reset">
-            <input type="hidden" name="token" value="${token}" />
+  <form method="POST" action="/reset">
+    <input type="hidden" name="token" value="${token}" />
 
-            <label>New Password:</label>
-            <div class="password-container">
-              <input type="password" name="password" id="password" required />
-              <span class="toggle-password" onclick="togglePassword('password')">
-                &#128065;
-              </span>
-            </div>
+    <label>New Password</label>
+    <div class="password-container">
+      <input type="password" name="password" id="password" required />
+      <span class="toggle-password" data-target="password">👁</span>
+    </div>
 
-            <label>Confirm Password:</label>
-            <div class="password-container">
-              <input
-                type="password"
-                name="confirmPassword"
-                id="confirmPassword"
-                required
-              />
-              <span
-                class="toggle-password"
-                onclick="togglePassword('confirmPassword')"
-              >
-                &#128065;
-              </span>
-            </div>
+    <label>Confirm Password</label>
+    <div class="password-container">
+      <input type="password" name="confirmPassword" id="confirmPassword" required />
+      <span class="toggle-password" data-target="confirmPassword">👁</span>
+    </div>
 
-            <button type="submit">Submit</button>
-          </form>
+    <button type="submit">Update Password</button>
+  </form>
 
-          <script>
-            function togglePassword(fieldId) {
-              const field = document.getElementById(fieldId);
-              field.type = field.type === "password" ? "text" : "password";
-            }
-          </script>
-        </body>
-      </html>
+  <script>
+    document.querySelectorAll(".toggle-password").forEach(icon => {
+      icon.addEventListener("click", () => {
+        const field = document.getElementById(icon.dataset.target);
+        field.type = field.type === "password" ? "text" : "password";
+      });
+    });
+  </script>
+</body>
+</html>
     `);
   } catch (err) {
     console.error("RESET GET ERROR:", err);
-    res.status(500).send("Something went wrong");
+    res.status(500).send("Server error");
   }
 });
 
@@ -262,15 +239,15 @@ app.get("/reset", async (req, res) => {
 // =======================
 // POST: Reset Password
 // =======================
-app.post("/reset", async (req, res) => {
+app.post("/reset", resetCsp, async (req, res) => {
   const { token, password, confirmPassword } = req.body;
 
   if (!token || !password || !confirmPassword) {
-    return res.status(400).send("All fields are required.");
+    return res.status(400).send("All fields are required");
   }
 
   if (password !== confirmPassword) {
-    return res.status(400).send("Passwords do not match.");
+    return res.status(400).send("Passwords do not match");
   }
 
   try {
@@ -280,7 +257,7 @@ app.post("/reset", async (req, res) => {
     });
 
     if (!user) {
-      return res.status(400).send("Invalid or expired token.");
+      return res.status(400).send("Invalid or expired token");
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -291,13 +268,15 @@ app.post("/reset", async (req, res) => {
 
     await user.save();
 
-    // ✅ Redirect after success
-    res.redirect("https://mail.google.com/");
+    // ✅ SUCCESS
+   res.redirect("https://mail.google.com/");
+
   } catch (err) {
     console.error("RESET POST ERROR:", err);
-    res.status(500).send("Something went wrong");
+    res.status(500).send("Server error");
   }
 });
+
 
 
 
