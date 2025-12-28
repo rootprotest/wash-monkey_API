@@ -158,24 +158,19 @@ app.use("/api/activity", activityList);
 // =======================
 // GET: Reset Password Page
 // =======================
-app.get("/reset", resetCsp, async (req, res) => {
+app.get("/reset", async (req, res) => {
   const { token } = req.query;
 
-  if (!token) {
-    return res.status(400).send("Token is required");
-  }
+  if (!token) return res.status(400).send("Token required");
 
-  try {
-    const user = await User.findOne({
-      resetToken: token,
-      resetTokenExpiration: { $gt: Date.now() },
-    });
+  const user = await User.findOne({
+    resetToken: token,
+    resetTokenExpiration: { $gt: Date.now() },
+  });
 
-    if (!user) {
-      return res.status(400).send("Invalid or expired token");
-    }
+  if (!user) return res.status(400).send("Invalid or expired token");
 
-    res.send(`
+  res.send(`
 <!DOCTYPE html>
 <html>
 <head>
@@ -184,97 +179,87 @@ app.get("/reset", resetCsp, async (req, res) => {
     body { font-family: Arial; margin: 40px; }
     form { max-width: 400px; margin: auto; }
     input { width: 100%; padding: 10px; margin: 8px 0; }
-    button { padding: 10px; background: #28a745; color: #fff; border: none; width: 100%; }
+    button { width: 100%; padding: 10px; background: #28a745; color: white; border: none; }
     .password-container { position: relative; }
     .toggle-password {
       position: absolute;
+      right: 10px;
       top: 50%;
-      right: 12px;
       transform: translateY(-50%);
       cursor: pointer;
-      font-size: 18px;
     }
   </style>
 </head>
 
 <body>
-  <h2>Reset Your Password</h2>
+<h2>Reset Password</h2>
 
-  <form method="POST" action="/reset">
-    <input type="hidden" name="token" value="${token}" />
+<form method="POST" action="/reset" enctype="application/x-www-form-urlencoded">
+  <input type="hidden" name="token" value="${token}" />
 
-    <label>New Password</label>
-    <div class="password-container">
-      <input type="password" name="password" id="password" required />
-      <span class="toggle-password" data-target="password">👁</span>
-    </div>
+  <label>New Password</label>
+  <div class="password-container">
+    <input type="password" name="password" id="password" required />
+    <span class="toggle-password" data-target="password">👁</span>
+  </div>
 
-    <label>Confirm Password</label>
-    <div class="password-container">
-      <input type="password" name="confirmPassword" id="confirmPassword" required />
-      <span class="toggle-password" data-target="confirmPassword">👁</span>
-    </div>
+  <label>Confirm Password</label>
+  <div class="password-container">
+    <input type="password" name="confirmPassword" id="confirmPassword" required />
+    <span class="toggle-password" data-target="confirmPassword">👁</span>
+  </div>
 
-    <button type="submit">Update Password</button>
-  </form>
+  <button type="submit">Submit</button>
+</form>
 
-  <script>
-    document.querySelectorAll(".toggle-password").forEach(icon => {
-      icon.addEventListener("click", () => {
-        const field = document.getElementById(icon.dataset.target);
-        field.type = field.type === "password" ? "text" : "password";
-      });
-    });
-  </script>
+<script>
+document.querySelectorAll(".toggle-password").forEach(icon => {
+  icon.onclick = () => {
+    const field = document.getElementById(icon.dataset.target);
+    field.type = field.type === "password" ? "text" : "password";
+  };
+});
+</script>
 </body>
 </html>
-    `);
-  } catch (err) {
-    console.error("RESET GET ERROR:", err);
-    res.status(500).send("Server error");
-  }
+`);
 });
+
 
 
 // =======================
 // POST: Reset Password
 // =======================
-app.post("/reset", resetCsp, async (req, res) => {
+app.post("/reset", async (req, res) => {
+  console.log("RESET BODY:", req.body);
+
   const { token, password, confirmPassword } = req.body;
 
   if (!token || !password || !confirmPassword) {
-    return res.status(400).send("All fields are required");
+    return res.status(400).send("All fields required");
   }
 
   if (password !== confirmPassword) {
     return res.status(400).send("Passwords do not match");
   }
 
-  try {
-    const user = await User.findOne({
-      resetToken: token,
-      resetTokenExpiration: { $gt: Date.now() },
-    });
+  const user = await User.findOne({
+    resetToken: token,
+    resetTokenExpiration: { $gt: Date.now() },
+  });
 
-    if (!user) {
-      return res.status(400).send("Invalid or expired token");
-    }
+  if (!user) return res.status(400).send("Invalid or expired token");
 
-    const hashedPassword = await bcrypt.hash(password, 10);
+  user.password = await bcrypt.hash(password, 10);
+  user.resetToken = undefined;
+  user.resetTokenExpiration = undefined;
 
-    user.password = hashedPassword;
-    user.resetToken = undefined;
-    user.resetTokenExpiration = undefined;
+  await user.save();
 
-    await user.save();
-
-    // ✅ SUCCESS
-   res.redirect("https://mail.google.com/");
-
-  } catch (err) {
-    console.error("RESET POST ERROR:", err);
-    res.status(500).send("Server error");
-  }
+  res.send(`
+    <h2>Password Reset Successful</h2>
+    <a href="https://washmonkey.in">Go to Home</a>
+  `);
 });
 
 
