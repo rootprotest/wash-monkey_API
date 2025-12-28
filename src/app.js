@@ -149,52 +149,156 @@ app.use("/api/activity", activityList);
 
 // ------------------- PASSWORD RESET -------------------
 // Serve password reset form
-app.get("/reset", resetLimiter, csrfProtection, async (req, res) => {
+// =======================
+// GET: Reset Password Page
+// =======================
+app.get("/reset", async (req, res) => {
   const { token } = req.query;
-  if (!token) return res.status(400).send("Token is required");
 
-  const user = await User.findOne({
-    resetToken: token,
-    resetTokenExpiration: { $gt: Date.now() },
-  });
+  if (!token) {
+    return res.status(400).send("Token is required");
+  }
 
-  if (!user) return res.status(400).send("Invalid or expired token");
+  try {
+    const user = await User.findOne({
+      resetToken: token,
+      resetTokenExpiration: { $gt: Date.now() },
+    });
 
-  res.send(`
-    <form method="POST" action="/reset">
-      <input type="hidden" name="_csrf" value="${req.csrfToken()}" />
-      <input type="hidden" name="token" value="${token}" />
+    if (!user) {
+      return res.status(400).send("Invalid or expired token");
+    }
 
-      <input type="password" name="password" required />
-      <input type="password" name="confirmPassword" required />
+    res.send(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Reset Password</title>
+          <style>
+            body {
+              font-family: Arial, sans-serif;
+              margin: 50px;
+            }
+            form {
+              max-width: 400px;
+              margin: auto;
+            }
+            input {
+              padding: 8px;
+              margin: 5px 0;
+              width: 100%;
+            }
+            button {
+              padding: 10px;
+              background-color: #28a745;
+              color: white;
+              border: none;
+              cursor: pointer;
+            }
+            .password-container {
+              position: relative;
+            }
+            .toggle-password {
+              position: absolute;
+              top: 50%;
+              right: 10px;
+              transform: translateY(-50%);
+              cursor: pointer;
+              font-size: 16px;
+              color: #555;
+            }
+          </style>
+        </head>
 
-      <button type="submit">Reset</button>
-    </form>
-  `);
+        <body>
+          <h2>Reset Your Password</h2>
+
+          <form method="POST" action="/reset">
+            <input type="hidden" name="token" value="${token}" />
+
+            <label>New Password:</label>
+            <div class="password-container">
+              <input type="password" name="password" id="password" required />
+              <span class="toggle-password" onclick="togglePassword('password')">
+                &#128065;
+              </span>
+            </div>
+
+            <label>Confirm Password:</label>
+            <div class="password-container">
+              <input
+                type="password"
+                name="confirmPassword"
+                id="confirmPassword"
+                required
+              />
+              <span
+                class="toggle-password"
+                onclick="togglePassword('confirmPassword')"
+              >
+                &#128065;
+              </span>
+            </div>
+
+            <button type="submit">Submit</button>
+          </form>
+
+          <script>
+            function togglePassword(fieldId) {
+              const field = document.getElementById(fieldId);
+              field.type = field.type === "password" ? "text" : "password";
+            }
+          </script>
+        </body>
+      </html>
+    `);
+  } catch (err) {
+    console.error("RESET GET ERROR:", err);
+    res.status(500).send("Something went wrong");
+  }
 });
 
 
-// Handle password reset
-app.post("/reset", resetLimiter, csrfProtection, async (req, res) => {
+// =======================
+// POST: Reset Password
+// =======================
+app.post("/reset", async (req, res) => {
   const { token, password, confirmPassword } = req.body;
 
-  if (password !== confirmPassword)
-    return res.status(400).send("Passwords do not match");
+  if (!token || !password || !confirmPassword) {
+    return res.status(400).send("All fields are required.");
+  }
 
-  const user = await User.findOne({
-    resetToken: token,
-    resetTokenExpiration: { $gt: Date.now() },
-  });
+  if (password !== confirmPassword) {
+    return res.status(400).send("Passwords do not match.");
+  }
 
-  if (!user) return res.status(400).send("Invalid or expired token");
+  try {
+    const user = await User.findOne({
+      resetToken: token,
+      resetTokenExpiration: { $gt: Date.now() },
+    });
 
-  user.password = await bcrypt.hash(password, 10);
-  user.resetToken = undefined;
-  user.resetTokenExpiration = undefined;
-  await user.save();
+    if (!user) {
+      return res.status(400).send("Invalid or expired token.");
+    }
 
-  res.redirect(process.env.FRONTEND_URL);
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    user.password = hashedPassword;
+    user.resetToken = undefined;
+    user.resetTokenExpiration = undefined;
+
+    await user.save();
+
+    // ✅ Redirect after success
+    res.redirect("https://mail.google.com/");
+  } catch (err) {
+    console.error("RESET POST ERROR:", err);
+    res.status(500).send("Something went wrong");
+  }
 });
+
 
 
 // ------------------- GLOBAL 404 -------------------
