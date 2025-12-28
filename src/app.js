@@ -68,8 +68,11 @@ app.use(cookieParser());
 
 // Helmet security
 if (NODE_ENV === "production") {
-  app.use(helmet());
-  app.use(
+app.use(
+  helmet({
+    crossOriginResourcePolicy: { policy: "cross-origin" },
+  })
+);  app.use(
     helmet.contentSecurityPolicy({
       directives: {
         defaultSrc: ["'self'"],
@@ -94,7 +97,13 @@ const resetLimiter =
     : (req, res, next) => next();
 
 // CSRF protection
-const csrfProtection = NODE_ENV === "production" ? csrf({ cookie: true }) : (req, res, next) => next();
+const csrfProtection = NODE_ENV === "production" ?  csrf({
+  cookie: {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+  },
+}) : (req, res, next) => next();
 
 // Enforce HTTPS in production
 if (NODE_ENV === "production") {
@@ -144,87 +153,49 @@ app.get("/reset", resetLimiter, csrfProtection, async (req, res) => {
   const { token } = req.query;
   if (!token) return res.status(400).send("Token is required");
 
-  try {
-    const user = await User.findOne({
-      resetToken: token,
-      resetTokenExpiration: { $gt: Date.now() },
-    });
+  const user = await User.findOne({
+    resetToken: token,
+    resetTokenExpiration: { $gt: Date.now() },
+  });
 
-    if (!user) return res.status(400).send("Invalid or expired token");
+  if (!user) return res.status(400).send("Invalid or expired token");
 
-    res.send(`
-      <html>
-      <head>
-        <title>Reset Password</title>
-        <style>
-          body { font-family: Arial; margin: 50px; }
-          input { padding: 8px; margin: 5px 0; width: 100%; }
-          button { padding: 10px; background-color: #28a745; color: white; border: none; cursor: pointer; }
-          form { max-width: 400px; margin: auto; }
-          .password-container { position: relative; }
-          .toggle-password { position: absolute; top: 50%; right: 10px; transform: translateY(-50%); cursor: pointer; font-size: 16px; color: #555; }
-        </style>
-      </head>
-      <body>
-        <h2>Reset Your Password</h2>
-        <form method="POST" action="/reset">
-          <input type="hidden" name="token" value="${token}" />
-          <label>New Password:</label>
-          <div class="password-container">
-            <input type="password" name="password" id="password" required />
-            <span class="toggle-password" onclick="togglePassword('password')">&#128065;</span>
-          </div>
-          <label>Confirm Password:</label>
-          <div class="password-container">
-            <input type="password" name="confirmPassword" id="confirmPassword" required />
-            <span class="toggle-password" onclick="togglePassword('confirmPassword')">&#128065;</span>
-          </div>
-          <button type="submit">Submit</button>
-        </form>
-        <script>
-          function togglePassword(fieldId) {
-            const field = document.getElementById(fieldId);
-            field.type = field.type === "password" ? "text" : "password";
-          }
-        </script>
-      </body>
-      </html>
-    `);
-  } catch (err) {
-    console.error(err);
-    res.status(500).send("Something went wrong");
-  }
+  res.send(`
+    <form method="POST" action="/reset">
+      <input type="hidden" name="_csrf" value="${req.csrfToken()}" />
+      <input type="hidden" name="token" value="${token}" />
+
+      <input type="password" name="password" required />
+      <input type="password" name="confirmPassword" required />
+
+      <button type="submit">Reset</button>
+    </form>
+  `);
 });
+
 
 // Handle password reset
 app.post("/reset", resetLimiter, csrfProtection, async (req, res) => {
   const { token, password, confirmPassword } = req.body;
 
-  if (!token || !password || !confirmPassword)
-    return res.status(400).send("All fields are required");
-
   if (password !== confirmPassword)
     return res.status(400).send("Passwords do not match");
 
-  try {
-    const user = await User.findOne({
-      resetToken: token,
-      resetTokenExpiration: { $gt: Date.now() },
-    });
-    if (!user) return res.status(400).send("Invalid or expired token");
+  const user = await User.findOne({
+    resetToken: token,
+    resetTokenExpiration: { $gt: Date.now() },
+  });
 
-    const hashedPassword = await bcrypt.hash(password, 10);
-    user.password = hashedPassword;
-    user.resetToken = undefined;
-    user.resetTokenExpiration = undefined;
-    await user.save();
+  if (!user) return res.status(400).send("Invalid or expired token");
 
-    res.redirect(FRONTEND_URL); // Redirect to production frontend
-  } catch (err) {
-    console.error(err);
-    res.status(500).send("Something went wrong");
-  }
+  user.password = await bcrypt.hash(password, 10);
+  user.resetToken = undefined;
+  user.resetTokenExpiration = undefined;
+  await user.save();
+
+  res.redirect(process.env.FRONTEND_URL);
 });
+
 
 // ------------------- GLOBAL 404 -------------------
 app.use((req, res) => {
