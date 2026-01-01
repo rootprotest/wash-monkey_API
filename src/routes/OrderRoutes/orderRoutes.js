@@ -32,6 +32,8 @@ router.post('/orders', OrderController.createOrderWithRazorpay);
 
 router.post('/tasks-today', OrderController.getAllTaskListForTodays);
 
+router.get('/tasks-today-list/tasks', OrderController.getTodayTasksOnlyForSuperAdmin);
+
 router.post('/trackStatusById', OrderController.OrderStatusById);
 
 router.post('/ChangeOrder', OrderController.ChangeOrderStatusById);

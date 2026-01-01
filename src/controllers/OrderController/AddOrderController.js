@@ -517,6 +517,66 @@ googleMapUrl = `https://www.google.com/maps/dir/?api=1&origin=${userLat},${userL
   }
 };
 
+// controllers/taskController.js
+
+// superAdmin.controller.js
+exports.getTodayTasksOnlyForSuperAdmin = async (req, res) => {
+  try {
+    const { date } = req.query; // ✅ date from client
+
+    const targetDate = date
+      ? new Date(date).toDateString()
+      : new Date().toDateString(); // fallback = today
+
+    const allOrders = await Order.find();
+
+    const result = [];
+
+    for (const order of allOrders) {
+      if (!Array.isArray(order.tasks)) continue;
+
+      // ✅ Filter tasks for selected date
+      const filteredTasks = order.tasks.filter((task) => {
+        return (
+          task.assign_date &&
+          new Date(task.assign_date).toDateString() === targetDate
+        );
+      });
+
+      if (filteredTasks.length === 0) continue;
+
+      const [address, user, products] = await Promise.all([
+        Address.findById(order.addressId),
+        User.findById(order.userId),
+        Promise.all(order.productIds.map((id) => Product.findById(id))),
+      ]);
+
+      result.push({
+        orderId: order._id,
+        orderNumber: order.orderNumber,
+        paymentStatus: order.paymentStatus,
+        user,
+        address,
+        products,
+        tasks: filteredTasks, // ✅ ONLY selected date tasks
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      date: targetDate,
+      totalOrders: result.length,
+      totalTasks: result.reduce((sum, o) => sum + o.tasks.length, 0),
+      orders: result,
+    });
+  } catch (error) {
+    console.error("Today Task Error:", error);
+    res.status(500).json({ success: false, error: "Server error" });
+  }
+};
+
+
+
 
 
 // Update a specific order by ID
