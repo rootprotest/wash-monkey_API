@@ -46,6 +46,8 @@ router.delete("/admins/:id", UserController.deleteAdmin);
 // DELETE an User by Id
 router.delete("/deleteUser/:id", UserController.deleteUser);
 
+router.delete("/deleteUserId/:id", UserController.deleteUsers);
+
 
 // Update an admin by ID
 router.put("/admins/:id", UserController.updateAdmin);

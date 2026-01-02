@@ -628,6 +628,37 @@ module.exports = {
       res.status(500).json({ success: false, error: "Server error" });
     }
   },
+  deleteUsers: async (req, res) => {
+  try {
+    const adminId = req.params.id;
+
+    // Check if user exists
+    const adminToDelete = await User.findById(adminId);
+
+    if (!adminToDelete) {
+      return res.status(404).json({
+        success: false,
+        error: "User not found",
+      });
+    }
+
+    // Soft delete: mark user as unverified
+    adminToDelete.verified = false;
+    await adminToDelete.save();
+
+    res.status(200).json({
+      success: true,
+      message: "User soft deleted successfully",
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      success: false,
+      error: "Server error",
+    });
+  }
+},
+
   userGetById: async (req, res) => {
     try {
       const userId = req.params.id;
