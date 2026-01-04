@@ -23,6 +23,59 @@ const orderStatuses = [
   "Returned",
 ];
 
+const CONFIRM_STATUSES = [
+  "Confirmed",
+  "Order Placed",
+  "Scheduled",
+  "Rescheduled",
+  "Pending",
+];
+
+const ACCEPT_STATUSES = [
+  "Accepted",
+  "Technician Assigned"
+];
+
+const ENROUTE_STATUSES = [
+  "En Route",
+  "Out for Delivery",
+  "Arrived"
+];
+
+const INPROGRESS_STATUSES = [
+  "In Progress",
+  "Processing"
+];
+
+const COMPLETED_STATUSES = [
+  "Completed",
+  "Delivered",
+  "Awaiting Review"
+];
+
+const PAYMENT_FAILED_STATUSES = [
+  "Failed",
+  "Payment Failed",
+  "Payment Pending"
+];
+
+const CANCELLED_STATUSES = [
+  "Cancelled",
+  "Cancelled by User",
+  "Cancelled by Technician",
+  "No Show"
+];
+
+const REFUND_STATUSES = [
+  "Refunded",
+  "Returned"
+];
+
+
+const SMS_API_KEY = "6FlAGamNys0B4OxZ";
+const SMS_SENDER_ID = "WASHMO";
+const SMS_API_URL = "http://app.mydreamstechnology.in/vb/apikey.php";
+
 const getAddressById = async (id) => {
   try {
     return await Address.findById(id);
@@ -234,6 +287,220 @@ const onCreateOrder = async (addressId, codType, newOrderList) => {
   }
 };
 
+const sendPaymentFailedSMS = async (
+  mobileNumber,
+  customerName,
+  amount,
+  orderId
+) => {
+  const message =
+    `Dear ${customerName}, payment of Rs.${amount} for Car Wash Service ` +
+    `request ${orderId} failed. Please retry or use another method. ` +
+    `Visit https://washmonkey.in - WASHIMONKI`;
+
+  const url =
+    `${SMS_API_URL}` +
+    `?apikey=${SMS_API_KEY}` +
+    `&senderid=${SMS_SENDER_ID}` +
+    `&number=${mobileNumber}` +
+    `&message=${encodeURIComponent(message)}`;
+
+  try {
+    const response = await axios.get(url);
+    console.log("Payment Failed SMS Sent:", response.data);
+    return response.data;
+  } catch (error) {
+    console.error("Payment Failed SMS Error:", error.message);
+  }
+};
+
+const sendOrderCompletedSMS = async (
+  mobileNumber,
+  customerName,
+  orderId,
+  status
+) => {
+  const message =
+    `Hi ${customerName}, your Wash Monkey Service request ${status} ` +
+    `has been successfully completed. Thank you for choosing us. ` +
+    `- WASHIMONKI`;
+
+  const url =
+    `${SMS_API_URL}` +
+    `?apikey=${SMS_API_KEY}` +
+    `&senderid=${SMS_SENDER_ID}` +
+    `&number=${mobileNumber}` +
+    `&message=${encodeURIComponent(message)}`;
+
+  try {
+    const response = await axios.get(url);
+    console.log("Order Completed SMS Sent:", response.data);
+    return response.data;
+  } catch (error) {
+    console.error("Order Completed SMS Error:", error.message);
+  }
+};
+
+
+const sendOrderAcceptedSMS = async (mobileNumber, customerName, orderId, bookingTime) => {
+  const apiKey = "6FlAGamNys0B4OxZ";
+  const senderId = "WASHMO";
+
+ const message =
+    `Hello ${customerName}, your Wash Monkey Service request ${orderId} ` +
+    `is confirmed for ${bookingTime}. Will be at your location as scheduled. ` +
+    `Visit https://washmonkey.in - WASHIMONKI`;
+
+  const url =
+    `http://app.mydreamstechnology.in/vb/apikey.php` +
+    `?apikey=${apiKey}` +
+    `&senderid=${senderId}` +
+    `&number=${mobileNumber}` +
+    `&message=${encodeURIComponent(message)}`;
+
+  try {
+    await axios.get(url);
+    console.log("Order Accepted SMS sent");
+  } catch (error) {
+    console.error("Accepted SMS failed:", error.message);
+  }
+};
+
+
+const sendOrderConfirmSMS = async (mobileNumber, customerName, orderId, bookingTime) => {
+  const apiKey = "6FlAGamNys0B4OxZ";
+  const senderId = "WASHMO";
+
+  const message =
+    `Hello ${customerName}, your Wash Monkey Service request ${orderId} ` +
+    `is confirmed for ${bookingTime}. Will be at your location as scheduled. ` +
+    `Visit https://washmonkey.in - WASHIMONKI`;
+
+  const url = `http://app.mydreamstechnology.in/vb/apikey.php` +
+    `?apikey=${apiKey}` +
+    `&senderid=${senderId}` +
+    `&number=${mobileNumber}` +
+    `&message=${encodeURIComponent(message)}`;
+
+  try {
+    const response = await axios.get(url);
+    console.log("Order Confirm SMS Sent:", response.data);
+    return response.data;
+  } catch (error) {
+    console.error("Order SMS failed:", error.message);
+  }
+};
+const sendOrderCancelledSMS = async (
+  mobileNumber,
+  customerName,
+  orderId,
+  reason
+) => {
+
+
+     const message =
+    `Hello ${customerName}, your Wash Monkey Service request ${reason} ` +
+    `is confirmed for ${reason ? ` (${reason})` : ""}. Will be at your location as scheduled. ` +
+    `Visit https://washmonkey.in - WASHIMONKI`;
+
+  const url =
+    `${SMS_API_URL}` +
+    `?apikey=${SMS_API_KEY}` +
+    `&senderid=${SMS_SENDER_ID}` +
+    `&number=${mobileNumber}` +
+    `&message=${encodeURIComponent(message)}`;
+
+  try {
+    const response = await axios.get(url);
+    console.log("Order Cancelled SMS Sent:", response.data);
+    return response.data;
+  } catch (error) {
+    console.error("Order Cancelled SMS Error:", error.message);
+  }
+};
+
+
+const sendRefundSMS = async (
+  mobileNumber,
+  customerName,
+  orderId,
+  amount
+) => {
+  const message =
+    `Dear ${customerName}, payment of Rs.${amount} for Car Wash Service ` +
+    `request ${orderId} failed. Please retry or use another method. ` +
+    `Visit https://washmonkey.in - WASHIMONKI`;
+
+  const url =
+    `${SMS_API_URL}` +
+    `?apikey=${SMS_API_KEY}` +
+    `&senderid=${SMS_SENDER_ID}` +
+    `&number=${mobileNumber}` +
+    `&message=${encodeURIComponent(message)}`;
+
+  try {
+    const response = await axios.get(url);
+    console.log("Refund SMS Sent:", response.data);
+    return response.data;
+  } catch (error) {
+    console.error("Refund SMS Error:", error.message);
+  }
+};
+
+const sendEnRouteSMS = async (
+  mobileNumber,
+  customerName,
+  orderId,
+  status
+) => {
+   const message =
+    `Hello ${customerName}, your Wash Monkey Service request ${status} ` +
+    `is confirmed for ${mobileNumber}. Will be at your location as scheduled. ` +
+    `Visit https://washmonkey.in - WASHIMONKI`;
+  const url =
+    `${SMS_API_URL}` +
+    `?apikey=${SMS_API_KEY}` +
+    `&senderid=${SMS_SENDER_ID}` +
+    `&number=${mobileNumber}` +
+    `&message=${encodeURIComponent(message)}`;
+
+  try {
+    const response = await axios.get(url);
+    console.log("En Route SMS Sent:", response.data);
+    return response.data;
+  } catch (error) {
+    console.error("En Route SMS Error:", error.message);
+  }
+};
+
+const sendInProgressSMS = async (
+  mobileNumber,
+  customerName,
+  orderId,
+  amount
+) => {
+   const message =
+    `Dear ${customerName}, payment of Rs.${amount} for Car Wash Service ` +
+    `request ${orderId} failed. Please retry or use another method. ` +
+    `Visit https://washmonkey.in - WASHIMONKI`;
+
+  const url =
+    `${SMS_API_URL}` +
+    `?apikey=${SMS_API_KEY}` +
+    `&senderid=${SMS_SENDER_ID}` +
+    `&number=${mobileNumber}` +
+    `&message=${encodeURIComponent(message)}`;
+
+  try {
+    const response = await axios.get(url);
+    console.log("In Progress SMS Sent:", response.data);
+    return response.data;
+  } catch (error) {
+    console.error("In Progress SMS Error:", error.message);
+  }
+};
+
+
 exports.createOrder = async (req, res) => {
   try {
     const { userId, addressId, productIds, totalAmount, delivery, razorpay_payment_id, paymentStatus, applycoupon, quantity, tasks, bookingTime, walletamount,interior } = req.body;
@@ -270,7 +537,12 @@ exports.createOrder = async (req, res) => {
     // let orderResponses = await onCreateOrder(addressId, deliveryType, newOrder);
     // newOrder.shipment_id = orderResponses.shipment_id
     await newOrder.save();
-
+ await sendOrderConfirmSMS(
+      user.mobilenumber,
+      user?.firstname || "Customer",
+      paymentStatus,
+      bookingTime
+    );
     res.status(200).json({ success: true, order: newOrder });
   } catch (error) {
     console.error(error);
@@ -614,7 +886,6 @@ exports.updateOrderById = async (req, res) => {
   try {
     const orderId = req.params.id;
 
-    // Destructure request body
     const {
       status,
       task_id,
@@ -624,16 +895,7 @@ exports.updateOrderById = async (req, res) => {
       taskDescription
     } = req.body;
 
-    console.log({
-      status,
-      task_id,
-      task_assign_person,
-      userId,
-      taskTitle,
-      taskDescription
-    });
-    
-    // Find the order
+    // 1️⃣ Find order
     const existingOrder = await Order.findById(orderId);
     if (!existingOrder) {
       return res.status(404).json({
@@ -642,12 +904,17 @@ exports.updateOrderById = async (req, res) => {
       });
     }
 
-    // Update order status if provided
-    if (status) existingOrder.paymentStatus = status;
+    // 2️⃣ Save old status BEFORE update
+    const oldStatus = existingOrder.paymentStatus;
+
+    // 3️⃣ Update order status
+    if (status) {
+      existingOrder.paymentStatus = status;
+    }
 
     let updatedTask = null;
 
-    // Update task if task_id is provided
+    // 4️⃣ Update task if provided
     if (task_id && task_assign_person) {
       const taskIndex = existingOrder.tasks.findIndex(
         (task) => task.task_id === task_id
@@ -660,91 +927,176 @@ exports.updateOrderById = async (req, res) => {
         });
       }
 
-      try {
-        // Mark task complete and assign
-        existingOrder.tasks[taskIndex].is_done = true;
-        existingOrder.tasks[taskIndex].time_complete = new Date();
-        existingOrder.tasks[taskIndex].assign_id = userId;
-        existingOrder.tasks[taskIndex].task_assign_person = task_assign_person;
+      existingOrder.tasks[taskIndex].is_done = true;
+      existingOrder.tasks[taskIndex].time_complete = new Date();
+      existingOrder.tasks[taskIndex].assign_id = userId;
+      existingOrder.tasks[taskIndex].task_assign_person = task_assign_person;
 
-        updatedTask = existingOrder.tasks[taskIndex];
-      } catch (taskError) {
-        console.error("Error updating task:", taskError);
-        return res.status(500).json({
-          success: false,
-          message: "Failed to update task inside order",
-        });
-      }
+      updatedTask = existingOrder.tasks[taskIndex];
     }
 
-    // Save the updated order
-    let updatedOrder;
-    try {
-      updatedOrder = await existingOrder.save();
-    } catch (saveError) {
-      console.error("Error saving updated order:", saveError);
-      return res.status(500).json({
-        success: false,
-        message: "Failed to save updated order",
-      });
+    // 5️⃣ Save order
+    const updatedOrder = await existingOrder.save();
+
+    /* ===========================
+       📩 SEND STATUS-BASED SMS
+       =========================== */
+   /* ===========================
+   📩 SEND STATUS-BASED SMS
+   =========================== */try {
+  if (status && status !== oldStatus) {
+    const user = await User.findById(updatedOrder.userId);
+
+    if (!user || !user.mobilenumber) return;
+
+    const customerName = user.firstname || user.name || "Customer";
+
+    // ✅ CONFIRMED / SCHEDULED
+    if (CONFIRM_STATUSES.includes(status)) {
+      await sendOrderConfirmSMS(
+        user.mobilenumber,
+        customerName,
+        status,
+        updatedOrder.bookingTime
+      );
     }
 
-    // Log in ActivityLog
-if (userId && updatedTask && (status === "Accepted" || status === "Completed")) {
-  try {
-    const date = require('moment')().format("YYYY-MM-DD");
-    const log = await ActivityLog.findOne({ userId, date });
-
-    if (log) {
-      const existingTask = log.tasks.find(task => task.taskId === updatedTask.task_id);
-
-      if (existingTask) {
-        // Update existing task
-        existingTask.title = taskTitle || `${status} Task ${updatedTask.task_id}`;
-        existingTask.description = taskDescription || `Task ${status.toLowerCase()} in Order ${orderId}`;
-        existingTask.status = status;
-        existingTask.assignedAt = new Date();
-
-        if (status === "Completed") {
-          existingTask.completedAt = new Date();
-        }
-      } else {
-        // Add new task
-        log.tasks.push({
-          taskId: updatedTask.task_id,
-          title: taskTitle || `${status} Task ${updatedTask.task_id}`,
-          description: taskDescription || `Task ${status.toLowerCase()} in Order ${orderId}`,
-          status: status,
-          assignedAt: new Date(),
-          ...(status === "Completed" && { completedAt: new Date() }),
-        });
-      }
-
-      await log.save();
+    // ✅ ACCEPTED / TECHNICIAN ASSIGNED
+    else if (ACCEPT_STATUSES.includes(status)) {
+      await sendOrderAcceptedSMS(
+        user.mobilenumber,
+        customerName,
+        status,
+        updatedOrder.bookingTime
+      );
     }
-  } catch (logError) {
-    console.error("Error logging activity:", logError);
-    // Don't throw, since it's non-blocking
-  }
+
+   // 🚗 EN ROUTE / ARRIVED
+else if (ENROUTE_STATUSES.includes(status)) {
+  await sendEnRouteSMS(
+    user.mobilenumber,
+    customerName,
+    updatedOrder._id,
+    status
+  );
+}
+
+// 🔧 IN PROGRESS
+else if (INPROGRESS_STATUSES.includes(status)) {
+  await sendInProgressSMS(
+    user.mobilenumber,
+    customerName,
+    status,
+    updatedOrder.totalAmount,
+
+  );
 }
 
 
-    
+    // ✅ COMPLETED
+    else if (COMPLETED_STATUSES.includes(status)) {
+      await sendOrderCompletedSMS(
+        user.mobilenumber,
+        customerName,
+        updatedOrder._id,
+        status
+      );
+    }
 
-    // Respond with updated order
-    res.status(200).json({
+    // ❌ PAYMENT FAILED
+    else if (PAYMENT_FAILED_STATUSES.includes(status)) {
+      await sendPaymentFailedSMS(
+        user.mobilenumber,
+        customerName,
+        updatedOrder.totalAmount,
+        status
+      );
+    }
+
+  // ❌ CANCELLED
+else if (CANCELLED_STATUSES.includes(status)) {
+  await sendOrderCancelledSMS(
+    user.mobilenumber,
+    customerName,
+    updatedOrder._id,
+    status // Cancelled by User / Technician / No Show
+  );
+}
+
+// 💸 REFUND
+else if (REFUND_STATUSES.includes(status)) {
+  await sendRefundSMS(
+    user.mobilenumber,
+    customerName,
+    status,
+    updatedOrder.totalAmount
+  );
+}
+
+  }
+} catch (smsError) {
+  console.error("SMS sending failed:", smsError.message);
+}
+
+    /* ===========================
+       🧾 ACTIVITY LOG
+       =========================== */
+    if (userId && updatedTask && (status === "Accepted" || status === "Completed")) {
+      try {
+        const date = require("moment")().format("YYYY-MM-DD");
+        const log = await ActivityLog.findOne({ userId, date });
+
+        if (log) {
+          const existingTask = log.tasks.find(
+            task => task.taskId === updatedTask.task_id
+          );
+
+          if (existingTask) {
+            existingTask.title =
+              taskTitle || `${status} Task ${updatedTask.task_id}`;
+            existingTask.description =
+              taskDescription || `Task ${status.toLowerCase()} in Order ${orderId}`;
+            existingTask.status = status;
+            existingTask.assignedAt = new Date();
+
+            if (status === "Completed") {
+              existingTask.completedAt = new Date();
+            }
+          } else {
+            log.tasks.push({
+              taskId: updatedTask.task_id,
+              title: taskTitle || `${status} Task ${updatedTask.task_id}`,
+              description:
+                taskDescription || `Task ${status.toLowerCase()} in Order ${orderId}`,
+              status,
+              assignedAt: new Date(),
+              ...(status === "Completed" && { completedAt: new Date() }),
+            });
+          }
+
+          await log.save();
+        }
+      } catch (logError) {
+        console.error("Activity log error:", logError.message);
+      }
+    }
+
+    // 6️⃣ Final response
+    return res.status(200).json({
       success: true,
       message: "Order updated successfully",
       order: updatedOrder,
     });
+
   } catch (error) {
     console.error("Error updating order:", error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: "Server error",
     });
   }
 };
+
 
 
 exports.taskupdateOrderById = async (req, res) => {
