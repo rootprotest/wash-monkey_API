@@ -200,6 +200,8 @@ module.exports = {
   login: async (req, res) => {
     const { email, password, mobilenumber, google_signin, fcm_token, isMobileLogin } = req.body;
 
+    console.log(req.body, "req.body");
+
     try {
       // Find user by username
       const errors = validationResult(req);
@@ -531,7 +533,7 @@ module.exports = {
 
       // Reset the OTP after successful verification
       user.OTPNumber = null;
-      user.verified = false;
+      user.verified = true;
       await user.save();
 
       return res
