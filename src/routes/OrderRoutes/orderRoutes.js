@@ -155,10 +155,101 @@ router.post('/payment-success', async (req, res) => {
   }
 });
 
-// ===== Utility functions =====
+
+router.post('/payment-callback', async (req, res) => {
+  const orderId = req.body.order_id || req.body.orderId;
+
+  if (!orderId) {
+    return res.redirect('myapp://payment-failed');
+  }
+
+  try {
+    const statusResponse = await juspay.order.status(orderId);
+    const status = statusResponse.status;
+
+    console.log('JUSPAY STATUS:', statusResponse);
+
+    // ✅ SUCCESS
+    if (status === 'CHARGED') {
+      return res.redirect(`myapp://payment-success?orderId=${orderId}`);
+    }
+
+    // ❌ FAILED
+    if (status === 'FAILED') {
+      return res.redirect(`myapp://payment-failed?orderId=${orderId}`);
+    }
+
+    // ⚠️ CANCELLED
+    if (status === 'CANCELLED') {
+      return res.redirect(`myapp://payment-cancelled?orderId=${orderId}`);
+    }
+
+    // ⏳ PENDING
+    return res.redirect(`myapp://payment-pending?orderId=${orderId}`);
+  } catch (error) {
+    console.error('Callback error:', error);
+    return res.redirect('myapp://payment-error');
+  }
+});
+
+/* ===========================
+   3️⃣ VERIFY PAYMENT (API FOR APP)
+=========================== */
+
+router.post('/verify-payment', async (req, res) => {
+  const { orderId } = req.body;
+
+  if (!orderId) {
+    return res.status(400).json(makeError('orderId required'));
+  }
+
+  try {
+    const statusResponse = await juspay.order.status(orderId);
+
+    const status = statusResponse.status;
+
+    if (status === 'CHARGED') {
+      return res.json({
+        success: true,
+        status: 'SUCCESS',
+        data: makeJuspayResponse(statusResponse),
+      });
+    }
+
+    if (status === 'FAILED') {
+      return res.json({
+        success: false,
+        status: 'FAILED',
+        reason: statusResponse.error_message,
+      });
+    }
+
+    if (status === 'CANCELLED') {
+      return res.json({
+        success: false,
+        status: 'CANCELLED',
+      });
+    }
+
+    return res.json({
+      success: false,
+      status: 'PENDING',
+    });
+  } catch (error) {
+    console.error('Verify error:', error);
+    return res.status(500).json(makeError('Verification failed'));
+  }
+});
+
+/* ===========================
+   UTILITY FUNCTIONS
+=========================== */
+
 function makeError(message) {
-  return { message: message || 'Something went wrong' };
+  return { success: false, message: message || 'Something went wrong' };
 }
+
+
 
 function makeJuspayResponse(successRspFromJuspay) {
   if (!successRspFromJuspay) return successRspFromJuspay;
@@ -167,57 +258,5 @@ function makeJuspayResponse(successRspFromJuspay) {
 }
 
 
-
-// router.post('/hdfc/create-order', async (req, res) => {
-//   try {
-//     const { totalAmount, userId, cart } = req.body;
-
-//     // Create unique order ID
-//     const orderId = 'ORD' + Date.now();
-
-//     const payload = {
-//       merchantId: 'SG3531', // or process.env.HDFC_MERCHANT_ID
-//       orderId,
-//       amount: totalAmount * 100, // in paise
-//       currency: 'INR',
-//       redirectUrl: 'https://yourdomain.com/hdfc/callback',
-//       customerEmail: 'sadamhussain4752@gmail.com',
-//       customerMobile: '9629283625',
-//     };
-
-//     // Base64 auth header
-//     const auth = Buffer.from(`${process.env.HDFC_CLIENT_ID}:${process.env.HDFC_CLIENT_SECRET}`).toString('base64');
-
-//     // Axios request
-//     const response = await axios.post(
-//       'https://pg-uat.smartgateway.hdfcbank.com/api/orders', // Sandbox URL
-//       payload,
-//       {
-//         headers: {
-//           'Authorization': `Basic ${auth}`,
-//           'Content-Type': 'application/json',
-//         },
-//         timeout: 10000, // 10 seconds timeout
-//       }
-//     );
-
-//     const data = response.data;
-
-//     if (!data.paymentUrl) {
-//       return res.status(400).json({ error: 'Failed to create HDFC order', data });
-//     }
-
-//     // Optionally save order in DB here (orderId, userId, cart, status=pending)
-
-//     res.json({ paymentUrl: data.paymentUrl, orderId });
-//   } catch (err) {
-//     console.error('HDFC create-order error:', err.message || err);
-//     if (err.response) {
-//       // Axios error with response
-//       return res.status(err.response.status).json({ error: err.response.data });
-//     }
-//     res.status(500).json({ error: 'Internal Server Error' });
-//   }
-// });
 
 module.exports = router;
