@@ -140,7 +140,10 @@ app.use("/api/activity", activityList);
 
 app.get("/reset", async (req, res) => {
   const { token } = req.query;
-  if (!token) return res.status(400).send("Token is required");
+
+  if (!token) {
+    return res.status(400).send("Reset token is required.");
+  }
 
   try {
     const user = await User.findOne({
@@ -149,39 +152,94 @@ app.get("/reset", async (req, res) => {
     });
 
     if (!user) {
-      return res.status(400).send("Invalid or expired token");
+      return res.status(400).send("Reset link is invalid or has expired.");
     }
 
-    // Serve HTML form with hidden token field
+    res.setHeader("Content-Type", "text/html");
+
     res.send(`
+      <!DOCTYPE html>
       <html>
-        <head>
-          <title>Reset Password</title>
-          <style>
-            body { font-family: Arial, sans-serif; margin: 50px; }
-            input { padding: 8px; margin: 5px 0; width: 100%; }
-            button { padding: 10px; background-color: #28a745; color: white; border: none; cursor: pointer; }
-            form { max-width: 400px; margin: auto; }
-          </style>
-        </head>
-        <body>
+      <head>
+        <title>Reset Password</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <style>
+          body {
+            font-family: Arial, sans-serif;
+            background: #f4f6f8;
+            padding: 40px;
+          }
+          form {
+            background: #ffffff;
+            padding: 25px;
+            max-width: 420px;
+            margin: auto;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+          }
+          h2 {
+            text-align: center;
+            margin-bottom: 20px;
+          }
+          label {
+            font-weight: bold;
+            display: block;
+            margin-top: 12px;
+          }
+          input {
+            width: 100%;
+            padding: 10px;
+            margin-top: 6px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+          }
+          button {
+            margin-top: 20px;
+            width: 100%;
+            padding: 12px;
+            background: #28a745;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+          }
+          button:hover {
+            background: #218838;
+          }
+          .hint {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+          }
+        </style>
+      </head>
+      <body>
+        <form method="POST" action="/reset">
           <h2>Reset Your Password</h2>
-          <form method="POST" action="/reset">
-            <input type="hidden" name="token" value="${token}" />
-            <label>New Password:</label>
-            <input type="password" name="password" required />
-            <label>Confirm Password:</label>
-            <input type="password" name="confirmPassword" required />
-            <button type="submit">Submit</button>
-          </form>
-        </body>
+
+          <input type="hidden" name="token" value="${token}" />
+
+          <label>New Password</label>
+          <input type="password" name="password" required />
+          <div class="hint">
+            Must be at least 8 characters, include uppercase, lowercase, number & symbol.
+          </div>
+
+          <label>Confirm Password</label>
+          <input type="password" name="confirmPassword" required />
+
+          <button type="submit">Reset Password</button>
+        </form>
+      </body>
       </html>
     `);
-  } catch (err) {
-    console.error(err);
-    res.status(500).send("Something went wrong");
+  } catch (error) {
+    console.error(error);
+    res.status(500).send("Internal server error.");
   }
 });
+
 
 
 app.post("/reset", async (req, res) => {
@@ -195,6 +253,11 @@ app.post("/reset", async (req, res) => {
     return res.status(400).send("Passwords do not match.");
   }
 
+  // 🔐 Password strength check
+  if (password.length < 8) {
+    return res.status(400).send("Password must be at least 8 characters.");
+  }
+
   try {
     const user = await User.findOne({
       resetToken: token,
@@ -202,23 +265,56 @@ app.post("/reset", async (req, res) => {
     });
 
     if (!user) {
-      return res.status(400).send("Invalid or expired token.");
+      return res.status(400).send("Reset token is invalid or expired.");
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
+
     user.password = hashedPassword;
     user.resetToken = undefined;
     user.resetTokenExpiration = undefined;
 
     await user.save();
 
-    // ✅ Redirect to Gmail after successful password reset
-    res.redirect("https://mail.google.com/");
-  } catch (err) {
-    console.error(err);
-    res.status(500).send("Something went wrong");
+    // ✅ Success page instead of blind redirect
+    res.send(`
+      <html>
+        <head>
+          <title>Password Reset Successful</title>
+          <style>
+            body {
+              font-family: Arial;
+              background: #f4f6f8;
+              text-align: center;
+              padding-top: 80px;
+            }
+            a {
+              display: inline-block;
+              margin-top: 20px;
+              padding: 12px 20px;
+              background: #007bff;
+              color: white;
+              text-decoration: none;
+              border-radius: 5px;
+            }
+            a:hover {
+              background: #0056b3;
+            }
+          </style>
+        </head>
+        <body>
+          <h2>✅ Password Reset Successful</h2>
+          <p>You can now log in with your new password.</p>
+          <a href="https://mail.google.com/">Open Gmail</a>
+        </body>
+      </html>
+    `);
+  } catch (error) {
+    console.error("RESET POST ERROR:", error);
+    res.status(500).send("Internal server error.");
   }
 });
+
 
 
 
