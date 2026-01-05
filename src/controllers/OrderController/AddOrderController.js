@@ -5,6 +5,8 @@ const Address = require("../../models/Address/AddressModel");
 const moment = require("moment");
 const axios = require("axios");
 const Rating = require("../../models/AddRating/RatingModel");
+const Vehicle = require('../../models/AddVehicle/VehicleModel');
+
 const ActivityLog = require('../../models/Activity/activity')
 const PAYMENTSTATUS = {
   1: "Completed",
@@ -561,12 +563,37 @@ exports.getAllOrder = async (req, res) => {
       ? { userId, paymentStatus: PAYMENTSTATUS[status] }
       : { userId };
 
+    // 1️⃣ Fetch all orders
     const orders = await Order.find(filter)
-      .select("_id userId paymentStatus createdAt totalAmount tasks") // 👈 ONLY NEEDED FIELDS
+      .select("_id userId paymentStatus createdAt totalAmount productIds tasks")
       .sort({ createdAt: -1 })
       .lean();
 
-    res.status(200).json({ success: true, orders });
+    if (orders.length === 0) {
+      return res.status(200).json({ success: true, orders: [] });
+    }
+
+    // 2️⃣ Get all unique product IDs from all orders
+    const allProductIds = [...new Set(orders.flatMap(order => order.productIds || []))];
+
+    // 3️⃣ Fetch all products in a single query
+    const products = await Product.find({ _id: { $in: allProductIds } })
+      .select("_id name category") // pick only the fields you need
+      .lean();
+
+    // 4️⃣ Map products by ID for quick lookup
+    const productMap = {};
+    products.forEach(p => {
+      productMap[p._id.toString()] = p;
+    });
+
+    // 5️⃣ Attach product details to each order
+    const ordersWithProducts = orders.map(order => ({
+      ...order,
+      products: (order.productIds || []).map(id => productMap[id.toString()]).filter(Boolean)
+    }));
+
+    res.status(200).json({ success: true, orders: ordersWithProducts });
   } catch (error) {
     console.error(error);
     res.status(500).json({ success: false, error: "Server error" });
@@ -582,14 +609,16 @@ exports.getByOrderID = async (req, res) => {
       return res.status(404).json({ success: false, message: "Order not found" });
     }
 
-    const [address, user, products, ratings] = await Promise.all([
+    // Fetch all related data in parallel
+    const [address, user, products, ratings, vehicle] = await Promise.all([
       Address.findById(order.addressId).lean(),
       User.findById(order.userId).lean(),
       Product.find({ _id: { $in: order.productIds } }).lean(),
       Rating.find({
         productId: { $in: order.productIds },
         userId: order.userId
-      }).sort({ createdAt: -1 }).lean()
+      }).sort({ createdAt: -1 }).lean(),
+      Vehicle.findById(order.vehicleId).lean(),
     ]);
 
     // Group ratings by productId
@@ -600,23 +629,26 @@ exports.getByOrderID = async (req, res) => {
       ratingMap[key].push(r);
     });
 
+    // Attach ratings to products
     const productsWithRatings = products.map(p => ({
       ...p,
-      ratings: ratingMap[p._id.toString()] || null
+      ratings: ratingMap[p._id.toString()] || []
     }));
 
+    // Respond with all order info
     res.status(200).json({
       success: true,
       order: {
         ...order,
         address,
         user,
+        vehicle,           // Include vehicle info
         products: productsWithRatings
       }
     });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ success: false, error: "Server error" });
+    console.error("Error fetching order:", error);
+    res.status(500).json({ success: false, error: error.message || "Server error" });
   }
 };
 
