@@ -503,7 +503,7 @@ const sendInProgressSMS = async (
 
 exports.createOrder = async (req, res) => {
   try {
-    const { userId, addressId, productIds, totalAmount, delivery, razorpay_payment_id, paymentStatus, applycoupon, quantity, tasks, bookingTime, walletamount,interior } = req.body;
+    const { userId, addressId, productIds, totalAmount, delivery, razorpay_payment_id, paymentStatus, applycoupon, quantity, tasks, bookingTime, walletamount,interior,vehicleId } = req.body;
 
     const newOrder = await Order.create({
       userId,
@@ -518,7 +518,8 @@ exports.createOrder = async (req, res) => {
       tasks,
       bookingTime,
       walletamount,
-      interior
+      interior,
+      vehicleId
     });
 
     const user = await User.findById(userId);
