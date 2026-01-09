@@ -37,6 +37,7 @@ const VehicleRoutes = require("./routes/AddVehicleRoutes/VehicleRoutes");
 const helpSupportRoutes = require("./routes/AddHelpSupport/helpSupportRoutes");
 const activityList = require("./routes/AddActivity/activity");
 const User = require("../src/models/UserModel/User");
+const walletTransactionRoutes = require("./routes/walletTransactionRoutes/walletTransactionRoutes");
 
 const app = express();
 
@@ -136,6 +137,7 @@ app.use("/api/reviews", ReviewRoutes);
 app.use("/api/vehicles", VehicleRoutes);
 app.use("/api/support", helpSupportRoutes);
 app.use("/api/activity", activityList);
+app.use("/api/wallet", walletTransactionRoutes);
 
 
 app.get("/reset", async (req, res) => {
