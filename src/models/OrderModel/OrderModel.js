@@ -47,11 +47,12 @@ const OrderSchema = new mongoose.Schema({
     ],
     default: "Pending",
   },
-  delivery: {
-    type: String,
-    enum: ["Cash", "Card", "Online"], // Or replace with ["Home Delivery", "Online"] if it refers to delivery method
-    default: "Online",
-  },
+ delivery: {
+  type: String,
+  enum: ["Cash", "Card", "Online", "UPI", "Wallet", "NetBanking"],
+  default: "Online",
+},
+
   interior: { type: Number, default: 0 },
   createdAt: { type: Date, default: Date.now },
   razorpay_payment_id: { type: String,  unique: true, },
