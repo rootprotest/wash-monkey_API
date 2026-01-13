@@ -1,4 +1,5 @@
 const Address = require('../../models/Address/AddressModel');
+const User = require("../../models/UserModel/User");
 
 // Create a new address
 exports.createAddress = async (req, res) => {
@@ -97,26 +98,44 @@ exports.updateAddressById = async (req, res) => {
 // Mark main address
 exports.markMainAddress = async (req, res) => {
   try {
+    const { userId } = req.body; // OR req.user._id if using JWT
     const addressId = req.params.id;
 
-    // Find address
-    const address = await Address.findById(addressId);
-    if (!address) {
+    // 1️⃣ Find user
+    const user = await User.findById(userId);
+    if (!user) {
       return res.status(404).json({
         success: false,
-        message: "Address not found",
+        message: "User not found",
       });
     }
 
-    // Remove previous main address for the same user
+    // 2️⃣ Find address (must belong to user)
+    const address = await Address.findOne({
+      _id: addressId,
+      userId: user._id,
+    });
+
+    if (!address) {
+      return res.status(404).json({
+        success: false,
+        message: "Address not found for this user",
+      });
+    }
+
+    // 3️⃣ Unmark previous main address
     await Address.updateMany(
-      { userId: address.userId },
+      { userId: user._id },
       { $set: { isMain: false } }
     );
 
-    // Mark selected address as main
+    // 4️⃣ Mark selected address as main
     address.isMain = true;
     await address.save();
+
+    // 5️⃣ Save main address in User
+    user.mainAddress = address._id;
+    await user.save();
 
     return res.status(200).json({
       success: true,
@@ -124,6 +143,7 @@ exports.markMainAddress = async (req, res) => {
       data: address,
     });
   } catch (error) {
+    console.error("markMainAddress error:", error);
     return res.status(500).json({
       success: false,
       message: "Server error",
