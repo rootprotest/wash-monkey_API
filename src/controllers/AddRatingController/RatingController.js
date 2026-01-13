@@ -90,7 +90,7 @@ exports.getProductById = async (req, res) => {
 exports.updateRating = async (req, res) => {
   try {
     const ratingId = req.params.id;
-    const { rating, comment } = req.body;
+    const { rating, comment ,status } = req.body;
 
     // Check if rating exists
     const existingRating = await Rating.findById(ratingId);
@@ -101,6 +101,7 @@ exports.updateRating = async (req, res) => {
     // Update the rating
     existingRating.rating = rating || existingRating.rating;
     existingRating.comment = comment || existingRating.comment;
+    existingRating.status = status || existingRating.status;
 
     // Save the updated rating
     await existingRating.save();

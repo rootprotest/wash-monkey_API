@@ -565,7 +565,7 @@ exports.getAllOrder = async (req, res) => {
 
     // 1️⃣ Fetch all orders
     const orders = await Order.find(filter)
-      .select("_id userId paymentStatus createdAt totalAmount productIds tasks")
+      .select("_id userId paymentStatus createdAt totalAmount productIds tasks walletamount applycoupon")
       .sort({ createdAt: -1 })
       .lean();
 
