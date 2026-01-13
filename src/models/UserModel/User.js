@@ -66,7 +66,12 @@ const userSchema = new mongoose.Schema({
   zone_id: { type: String, default: "" },
   latitude: { type: String, default: "" },
   longitude: { type: String, default: "" },
-  seller_address: { type: String, default: "" }
+  seller_address: { type: String, default: "" },
+  mainAddress: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Address",
+    default: null,
+  },
 });
 
 // Method to generate token

@@ -7,6 +7,7 @@ const AddressSchema = new mongoose.Schema({
   companyName: { type: String, default: null },
   street: { type: String,  },
   city: { type: String,  },
+  isMain: { type: Boolean, default: false },
   state: { type: String,  },
   pinCode: { type: String,  },
   email: { type: String,  },

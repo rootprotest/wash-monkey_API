@@ -666,7 +666,7 @@ module.exports = {
       const userId = req.params.id;
 
       // Check if the user with the given ID exists
-      const userData = await User.findById(userId);
+    const userData = await User.findById(userId).populate("mainAddress");
 
       if (!userData) {
         return res

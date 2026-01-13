@@ -8,6 +8,12 @@ router.post('/createAddress', AddressController.createAddress);
 router.get('/getByIdAddress/:id', AddressController.getByIdAddress);
 router.get('/getAddress', AddressController.getAllAddress);
 router.put('/EditAddress/:id', AddressController.updateAddressById);
+
+router.put(
+  "/markMainAddress/:id",
+  AddressController.markMainAddress
+);
+
 router.delete('/DeleteAddres/:id', AddressController.deleteAddressById);
 
 module.exports = router;
