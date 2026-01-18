@@ -149,15 +149,15 @@ const sendEmail = async (email, otp) => {
       host: "smtp.gmail.com",
       port: 587,
       auth: {
-        user: "sadam@imsolutions.mobi",
-        pass: "dubdhyzvluxegnke",
+        user: "monkeywashclean@gmail.com",
+        pass: "oqvciwgddvzeecxm",
       },
     });
 
     await transporter.verify();
 
     await transporter.sendMail({
-      from: "sadamimsolutions@gmail.com",
+      from: "monkeywashclean@gmail.com",
       to: email,
       subject: "Account Verification",
       html: `<p>Thank you for registering! Please click the link to verify your account OTP ${otp}.</p>`,
@@ -661,53 +661,82 @@ module.exports = {
   }
 },
 
-  userGetById: async (req, res) => {
-    try {
-      const userId = req.params.id;
+ userGetById: async (req, res) => {
+  try {
+    const userId = req.params.id;
 
-      // Check if the user with the given ID exists
+    // 1️⃣ Fetch user
     const userData = await User.findById(userId).populate("mainAddress");
 
-      if (!userData) {
-        return res
-          .status(404)
-          .json({ success: false, error: "User not found" });
-      }
-      // Check if user exists
-      if (!userData?.verified) {
-        return res
-          .status(401)
-          .json({ success: false, message: "Account not Verified" });
-      }
-
-      // Fetch orders by status
-      const [completedOrders, pendingOrders, inProgressOrders] = await Promise.all([
-        Order.countDocuments({ userId, paymentStatus: "Completed" }),
-        Order.countDocuments({ userId, paymentStatus: "Confirmed" }),
-        Order.countDocuments({ userId, paymentStatus: "InProgress" }),
-      ]);
-
-      // Convert userData to a plain JavaScript object if it's a Mongoose Document
-      const userObj = userData.toObject();
-
-      // Add order counts inside user object
-      userObj.orders = {
-        completed: completedOrders,
-        pending: pendingOrders,
-        inProgress: inProgressOrders,
-        total: completedOrders + pendingOrders + inProgressOrders
-      };
-
-      return res.status(200).json({
-        success: true,
-        User: userObj,
+    if (!userData) {
+      return res.status(404).json({
+        success: false,
+        error: "User not found",
       });
-
-    } catch (error) {
-      console.error(error);
-      res.status(500).json({ success: false, error: "Server error" });
     }
-  },
+
+    // 2️⃣ Check verification
+    if (!userData.verified) {
+      return res.status(401).json({
+        success: false,
+        message: "Account not Verified",
+      });
+    }
+
+    // 3️⃣ Fetch order counts
+    const [
+      totalOrders,
+      completedOrders,
+      inProgressOrders,
+      confirmedOrders,
+    ] = await Promise.all([
+      // 🔢 TOTAL
+      Order.countDocuments({ userId }),
+
+      // ✅ COMPLETED
+      Order.countDocuments({
+        userId,
+        paymentStatus: "Completed",
+      }),
+
+      // 🔄 IN PROGRESS
+      Order.countDocuments({
+        userId,
+        paymentStatus: "InProgress",
+      }),
+
+      // ⏳ CONFIRMED (Pending start)
+      Order.countDocuments({
+        userId,
+        paymentStatus: "Confirmed",
+      }),
+    ]);
+
+    // 4️⃣ Pending = Confirmed + InProgress
+    const pendingOrders = confirmedOrders + inProgressOrders;
+
+    // 5️⃣ Attach orders summary to user
+    const userObj = userData.toObject();
+    userObj.orders = {
+      total: totalOrders,
+      completed: completedOrders,
+      inProgress: inProgressOrders,
+      pending: pendingOrders,
+    };
+
+    return res.status(200).json({
+      success: true,
+      User: userObj,
+    });
+  } catch (error) {
+    console.error("userGetById error:", error);
+    res.status(500).json({
+      success: false,
+      error: "Server error",
+    });
+  }
+},
+
   updateAdmin: async (req, res) => {
     try {
       const adminId = req.params.id;

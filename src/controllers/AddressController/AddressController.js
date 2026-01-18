@@ -1,13 +1,117 @@
 const Address = require('../../models/Address/AddressModel');
 const User = require("../../models/UserModel/User");
 
+
+const nodemailer = require("nodemailer");
+
+const sendPinCodeAlertEmail = async (address) => {
+  const {
+    fullName,
+    phone,
+    email,
+    companyName,
+    street,
+    city,
+    state,
+    pinCode,
+    typeAddress,
+    latitude,
+    longitude,
+    userId,
+  } = address;
+
+const transporter = nodemailer.createTransport({
+      host: "smtp.gmail.com",
+      port: 587,
+      secure: false,
+      auth: {
+        user: "monkeywashclean@gmail.com",
+        pass: "oqvciwgddvzeecxm",
+      },
+    });
+  const mailOptions = {
+    from: `"Booking Alert" <${process.env.EMAIL_USER}>`,
+    to: "support@washmonkey.in", // 🔁 admin email
+    subject: `🚨 Booking Attempt – Unsupported Pin Code (${pinCode})`,
+    html: `
+      <h3>Unsupported Area Booking Attempt</h3>
+      <table border="1" cellpadding="8" cellspacing="0">
+        <tr><td><b>Full Name</b></td><td>${fullName}</td></tr>
+        <tr><td><b>Phone</b></td><td>${phone}</td></tr>
+        <tr><td><b>Email</b></td><td>${email || "N/A"}</td></tr>
+        <tr><td><b>Company</b></td><td>${companyName || "N/A"}</td></tr>
+        <tr><td><b>Street</b></td><td>${street}</td></tr>
+        <tr><td><b>City</b></td><td>${city}</td></tr>
+        <tr><td><b>State</b></td><td>${state}</td></tr>
+        <tr><td><b>Pin Code</b></td><td>${pinCode}</td></tr>
+        <tr><td><b>Address Type</b></td><td>${typeAddress}</td></tr>
+        <tr><td><b>Latitude</b></td><td>${latitude}</td></tr>
+        <tr><td><b>Longitude</b></td><td>${longitude}</td></tr>
+        <tr><td><b>User ID</b></td><td>${userId}</td></tr>
+      </table>
+
+      <p>Please contact the customer manually.</p>
+    `,
+  };
+
+  await transporter.sendMail(mailOptions);
+};
+
+const ALLOWED_PIN_CODES = [
+  "600020", // Adyar
+  "600041", // Thiruvanmiyur
+  "600096", // OMR
+  "600097",
+  "600119",
+  "600130"
+];
+
+
 // Create a new address
 exports.createAddress = async (req, res) => {
   try {
-    const { userId, fullName, phone, companyName, street, city, state, pinCode, email, typeAddress,latitude,longitude } = req.body;
-    console.log({ userId, fullName, phone, companyName, street, city, state, pinCode, email, typeAddress,longitude,latitude });
-    
+    const {
+      userId,
+      fullName,
+      phone,
+      companyName,
+      street,
+      city,
+      state,
+      pinCode,
+      email,
+      typeAddress,
+      latitude,
+      longitude,
+    } = req.body;
 
+    const isAllowedPin = ALLOWED_PIN_CODES.includes(String(pinCode));
+
+    // ❌ Pin not allowed → send FULL address details
+    if (!isAllowedPin) {
+      await sendPinCodeAlertEmail({
+        userId,
+        fullName,
+        phone,
+        email,
+        companyName,
+        street,
+        city,
+        state,
+        pinCode,
+        typeAddress,
+        latitude,
+        longitude,
+      });
+
+      return res.status(400).json({
+        success: false,
+        message:
+          "Currently our service is not available in your area. Our team will contact you shortly.",
+      });
+    }
+
+    // ✅ Allowed → save address
     const newAddress = await Address.create({
       userId,
       fullName,
@@ -20,15 +124,22 @@ exports.createAddress = async (req, res) => {
       email,
       typeAddress,
       latitude,
-      longitude
+      longitude,
     });
 
-    res.status(200).json({ success: true, address: newAddress });
+    return res.status(200).json({
+      success: true,
+      address: newAddress,
+    });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ success: false, error: 'Server error' });
+    console.error("createAddress error:", error);
+    return res.status(500).json({
+      success: false,
+      error: "Server error",
+    });
   }
 };
+
 
 // Get all Address
 exports.getAllAddress = async (req, res) => {

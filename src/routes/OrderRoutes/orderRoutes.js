@@ -13,6 +13,9 @@ router.put('/orderUpdate/:id', OrderController.updateOrderById);
 
 router.put('/taskupdateOrderById/:id', OrderController.taskupdateOrderById);
 
+
+router.put('/rescheduleTaskOrderById/:id', OrderController.rescheduleTaskOrderById);
+
 router.delete('/deleteOrder/:id', OrderController.deleteOrderById);
 
 router.get('/orderGetById/:id', OrderController.getByOrderID);

@@ -20,6 +20,11 @@ const helpSupportSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId, // ✅ Reference to the User model
     ref: 'User',
   },
+  ticketNumber: {
+  type: String,
+  unique: true,
+},
+
   issue: {
     type: String,
   },

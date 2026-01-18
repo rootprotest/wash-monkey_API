@@ -1184,6 +1184,89 @@ exports.taskupdateOrderById = async (req, res) => {
 };
 
 
+exports.rescheduleTaskOrderById = async (req, res) => {
+  try {
+    const orderId = req.params.id;
+    const { old_id, task_id, new_date } = req.body; // old task and the task to update
+    console.log({ old_id, task_id, new_date });
+    
+
+    if (!old_id || !task_id || !new_date) {
+      return res.status(400).json({
+        success: false,
+        message: "old_id, task_id, and new_date are required",
+      });
+    }
+
+  const newDateObj = new Date(new_date);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // reset time
+    const tomorrow = new Date(today);
+    tomorrow.setDate(today.getDate() + 1);
+
+    if (newDateObj < tomorrow) {
+      return res.status(400).json({
+        success: false,
+        message: "Reschedule date must be tomorrow or later",
+      });
+    }
+
+    const existingOrder = await Order.findById(orderId);
+    if (!existingOrder) {
+      return res.status(404).json({
+        success: false,
+        message: "Order not found",
+      });
+    }
+
+    // --- OLD TASK ---
+    const oldTask = existingOrder.tasks.find(task => task.task_id === old_id);
+    if (!oldTask) {
+      return res.status(404).json({
+        success: false,
+        message: "Old task not found",
+      });
+    }
+
+    // Only update if not done
+    if (!oldTask.is_done) {
+      oldTask.interior = false;
+      oldTask.exterior = true;
+    }
+
+    // --- TASK TO UPDATE ---
+    const task = existingOrder.tasks.find(task => task.task_id === task_id);
+    if (!task) {
+      return res.status(404).json({
+        success: false,
+        message: "Task to update not found",
+      });
+    }
+
+    // Only update if not done
+    if (!task.is_done) {
+      task.assign_date = new Date(new_date);
+      task.interior = true;
+      task.exterior = false;
+    }
+
+    const updatedOrder = await existingOrder.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Tasks updated successfully",
+      order: updatedOrder,
+    });
+
+  } catch (error) {
+    console.error("Error updating tasks:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Server error",
+    });
+  }
+};
+
 
 // Delete a specific order by ID
 exports.deleteOrderById = async (req, res) => {

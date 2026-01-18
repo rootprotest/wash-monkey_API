@@ -21,8 +21,8 @@ const nodemailer = require('nodemailer');
       host: "smtp.gmail.com",
       port: 587,
       auth: {
-        user: "sadam@imsolutions.mobi",
-        pass: "dubdhyzvluxegnke",
+        user: "monkeywashclean@gmail.com",
+        pass: "oqvciwgddvzeecxm",
       },
     });
 module.exports = transporter;
