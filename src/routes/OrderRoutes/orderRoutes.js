@@ -43,6 +43,16 @@ router.post('/ChangeOrder', OrderController.ChangeOrderStatusById);
 
 router.post('/ordersCancel', OrderController.CancelOrderById);
 
+router.put("/ordernote/:id/note", OrderController.updateOrderNote);
+
+router.post("/task/create", OrderController.createOrderTask);
+
+router.delete(
+  "/task/delete/:order_id/:task_id",
+  OrderController.deleteTask
+);
+
+
 // ===== HDFC Direct API (Old method) =====
 // router.post('/hdfc/create-order', async (req, res) => {
 //   try {

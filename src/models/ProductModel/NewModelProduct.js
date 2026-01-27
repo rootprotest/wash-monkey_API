@@ -11,7 +11,7 @@ const ProductSchema = new mongoose.Schema({
   dimensions: { type: String }, // Main image URL
   isActive: { type: String }, // Main image URL
   availability: { type: String }, // Main image URL
-  quantity: { type: Number, default: null }, // Can be used for stock
+  quantity: { type: String, default: null }, // Can be used for stock
   weight: { type: String, default: null },
   marirty: { type: String }, // New field as per your request
 

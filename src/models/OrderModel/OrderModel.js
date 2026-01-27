@@ -63,6 +63,11 @@ const OrderSchema = new mongoose.Schema({
   bookingTime: { type: String },
   vehicleId: { type: String },
   walletamount: { type: Number, default: 0 },
+  note: {
+  type: String,
+  default: "",
+},
+
   quantity: [
     {
       productId: {
@@ -84,6 +89,7 @@ const OrderSchema = new mongoose.Schema({
       },
       task_assign_person: { type: String, }, // Add required if necessary
       assign_id: { type: String }, // Same here
+      status: { type: String }, // Same here
       date: { type: Date, default: Date.now }, // System date (default to now)
       assign_date: { type: Date, }, // Scheduled task date
       time_complete: { type: Date, default: null },

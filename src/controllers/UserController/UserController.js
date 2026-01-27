@@ -417,6 +417,33 @@ module.exports = {
     }
   },
 
+  listgetUsers: async (req, res) => {
+  try {
+    const { userType } = req.query;
+
+    // Build filter condition
+    const filter = {};
+    if (userType) {
+      filter.UserType = userType;
+    }
+
+    // Fetch users with optional filter
+    const users = await User.find(filter);
+
+    return res.status(200).json({
+      success: true,
+      users,
+    });
+  } catch (error) {
+    console.error("listUsers error:", error);
+    return res.status(500).json({
+      success: false,
+      error: "Server error",
+    });
+  }
+},
+
+
   getUsers: async (req, res) => {
     try {
       // Extract usertype and lang from query parameters
@@ -661,7 +688,7 @@ module.exports = {
   }
 },
 
- userGetById: async (req, res) => {
+userGetById: async (req, res) => {
   try {
     const userId = req.params.id;
 
@@ -689,11 +716,12 @@ module.exports = {
       completedOrders,
       inProgressOrders,
       confirmedOrders,
+      ordersWithTasks,
     ] = await Promise.all([
-      // 🔢 TOTAL
+      // 🔢 TOTAL ORDERS
       Order.countDocuments({ userId }),
 
-      // ✅ COMPLETED
+      // ✅ COMPLETED ORDERS
       Order.countDocuments({
         userId,
         paymentStatus: "Completed",
@@ -702,7 +730,7 @@ module.exports = {
       // 🔄 IN PROGRESS
       Order.countDocuments({
         userId,
-        paymentStatus: "InProgress",
+        paymentStatus: "In Progress",
       }),
 
       // ⏳ CONFIRMED (Pending start)
@@ -710,12 +738,21 @@ module.exports = {
         userId,
         paymentStatus: "Confirmed",
       }),
+
+      // Fetch all orders for servicedays calculation
+      Order.find({ userId }),
     ]);
 
     // 4️⃣ Pending = Confirmed + InProgress
     const pendingOrders = confirmedOrders + inProgressOrders;
 
-    // 5️⃣ Attach orders summary to user
+    // 5️⃣ Calculate servicedays based on completed tasks only
+    let servicedays = 0;
+    ordersWithTasks.forEach((order) => {
+      servicedays += order.tasks.filter((task) => task.is_done).length;
+    });
+
+    // 6️⃣ Attach orders summary + servicedays to user
     const userObj = userData.toObject();
     userObj.orders = {
       total: totalOrders,
@@ -723,19 +760,22 @@ module.exports = {
       inProgress: inProgressOrders,
       pending: pendingOrders,
     };
+    userObj.servicedays = servicedays;
 
+    // 7️⃣ Send response
     return res.status(200).json({
       success: true,
       User: userObj,
     });
   } catch (error) {
     console.error("userGetById error:", error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: "Server error",
     });
   }
 },
+
 
   updateAdmin: async (req, res) => {
     try {

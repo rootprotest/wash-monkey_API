@@ -21,6 +21,9 @@ router.post(
 // Get all users endpoint
 router.get("/list", UserController.listUsers);
 
+router.get("/lists", UserController.listgetUsers);
+
+
 router.get("/userGetById/:id", UserController.userGetById);
 
 // Get all users endpoint

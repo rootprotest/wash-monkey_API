@@ -948,26 +948,33 @@ exports.updateOrderById = async (req, res) => {
     let updatedTask = null;
 
     // 4️⃣ Update task if provided
-    if (task_id && task_assign_person) {
-      const taskIndex = existingOrder.tasks.findIndex(
-        (task) => task.task_id === task_id
-      );
+  if (task_id && task_assign_person) {
+  const taskIndex = existingOrder.tasks.findIndex(
+    (task) => task.task_id === task_id
+  );
 
-      if (taskIndex === -1) {
-        return res.status(404).json({
-          success: false,
-          message: "Task not found with the given ID",
-        });
-      }
+  if (taskIndex === -1) {
+    return res.status(404).json({
+      success: false,
+      message: "Task not found with the given ID",
+    });
+  }
 
-      existingOrder.tasks[taskIndex].is_done = true;
-      existingOrder.tasks[taskIndex].time_complete = new Date();
-      existingOrder.tasks[taskIndex].assign_id = userId;
-      existingOrder.tasks[taskIndex].task_assign_person = task_assign_person;
+  // Update task fields
+  existingOrder.tasks[taskIndex].is_done = true;
+  existingOrder.tasks[taskIndex].time_complete = new Date();
+  existingOrder.tasks[taskIndex].assign_id = userId;
+  existingOrder.tasks[taskIndex].status = status;
+  existingOrder.tasks[taskIndex].task_assign_person = task_assign_person;
 
-      updatedTask = existingOrder.tasks[taskIndex];
-    }
+  // MARK AS MODIFIED
+  existingOrder.markModified("tasks");
 
+  updatedTask = existingOrder.tasks[taskIndex];
+}
+
+   console.log(existingOrder,'existingOrder');
+   
     // 5️⃣ Save order
     const updatedOrder = await existingOrder.save();
 
@@ -1293,109 +1300,227 @@ exports.deleteOrderById = async (req, res) => {
     res.status(500).json({ success: false, error: "Server error" });
   }
 };
+
+/* ---------------- DASHBOARD ---------------- */
 exports.getAllDashboard = async (req, res) => {
   try {
-    const { status } = req.query;
+    const now = moment();
 
-    // Get current date
-    const currentDate = moment();
-    const filter = {};
+    /* ---------------- DATE RANGES ---------------- */
+    const todayStart = now.clone().startOf("day").toDate();
+    const todayEnd = now.clone().endOf("day").toDate();
 
-    // Calculate counts and total amount for different time periods
+    const yesterdayStart = now.clone().subtract(1, "day").startOf("day").toDate();
+    const yesterdayEnd = now.clone().subtract(1, "day").endOf("day").toDate();
+
+    const monthStart = now.clone().startOf("month").toDate();
+    const monthEnd = now.clone().endOf("month").toDate();
+
+    const yearStart = now.clone().startOf("year").toDate();
+    const yearEnd = now.clone().endOf("year").toDate();
+
+    /* ---------------- BASIC ORDER STATS ---------------- */
     const today_order = await calculateOrderStats({
-      ...filter,
-      createdAt: {
-        $gte: currentDate.startOf("day").toDate(),
-        $lt: currentDate.endOf("day").toDate(),
-      },
+      createdAt: { $gte: todayStart, $lt: todayEnd },
     });
+
     const yesterday_order = await calculateOrderStats({
-      ...filter,
-      createdAt: {
-        $gte: currentDate.subtract(1, "days").startOf("day").toDate(),
-        $lt: currentDate.subtract(1, "days").endOf("day").toDate(),
-      },
+      createdAt: { $gte: yesterdayStart, $lt: yesterdayEnd },
     });
+
     const months_order = await calculateOrderStats({
-      ...filter,
-      createdAt: {
-        $gte: currentDate.startOf("month").toDate(),
-        $lt: currentDate.endOf("month").toDate(),
-      },
+      createdAt: { $gte: monthStart, $lt: monthEnd },
     });
+
     const yearly_order = await calculateOrderStats({
-      ...filter,
-      createdAt: {
-        $gte: currentDate.startOf("year").toDate(),
-        $lt: currentDate.endOf("year").toDate(),
-      },
-    });
-    const total_order = await calculateOrderStats({
-      ...filter,
-      createdAt: {
-        $gte: currentDate.startOf("year").toDate(),
-        $lt: currentDate.endOf("year").toDate(),
-      },
+      createdAt: { $gte: yearStart, $lt: yearEnd },
     });
 
-    // Weekly sales amounts for the current year
-    // const chartWeek = {};
+    const total_order = await calculateOrderStats({});
 
-    // Get all orders for the current year
+    /* ---------------- YEARLY ORDERS ---------------- */
     const yearlyOrders = await Order.find({
-      ...filter,
-      createdAt: {
-        $gte: currentDate.startOf("year").toDate(),
-        $lt: currentDate.endOf("year").toDate(),
-      },
+      createdAt: { $gte: yearStart, $lt: yearEnd },
+    }).select("createdAt totalAmount");
+
+    /* ---------------- MONTHLY CHART ---------------- */
+    const chartYears = {};
+    moment.months().forEach((m) => (chartYears[m.toLowerCase()] = 0));
+
+    yearlyOrders.forEach((o) => {
+      const month = moment(o.createdAt).format("MMMM").toLowerCase();
+      chartYears[month] += o.totalAmount || 0;
     });
 
-    // // Calculate weekly sales amounts for the current year
-    // for (let i = 0; i < 52; i++) {
-    //     const weekOrders = yearlyOrders.filter(order => moment(order.createdAt).isoWeek() === i);
-    //     const weeklyAmount = weekOrders.reduce((total, order) => total + order.totalAmount, 0);
-    //     chartWeek[`week${i + 1}`] = weeklyAmount;
-    // }
+    /* ---------------- SALES STATUS ---------------- */
+    const salesAgg = await Order.aggregate([
+      { $group: { _id: "$paymentStatus", count: { $sum: 1 } } },
+    ]);
 
-    // Monthly sales amounts for each year
-    const chartYears = {};
-
-    // Calculate monthly sales amounts for the current year
-    for (let i = 0; i < 12; i++) {
-      const monthOrders = yearlyOrders.filter(
-        (order) => moment(order.createdAt).month() === i
-      );
-      const monthlyAmount = monthOrders.reduce(
-        (total, order) => total + order.totalAmount,
-        0
-      );
-      chartYears[moment.months(i).toLowerCase()] = monthlyAmount;
-    }
-
-    // Sales counts for different order statuses
     const sales = {};
+    salesAgg.forEach((s) => {
+      sales[`${s._id.toLowerCase()}_order`] = s.count;
+    });
 
-    for (const status of orderStatuses) {
-      sales[`${status.toLowerCase()}_order`] = await Order.countDocuments({
-        ...filter,
-        paymentStatus: status,
-      });
-    }
-
-    // Last 7 days sales amounts
+    /* ---------------- LAST 7 DAYS ---------------- */
     const last7DaysAmount = {};
     for (let i = 6; i >= 0; i--) {
-      const day = moment().subtract(i, "days").format("ddd").toLowerCase();
-      const dayOrders = yearlyOrders.filter((order) =>
-        moment(order.createdAt).isSame(moment().subtract(i, "days"), "day")
-      );
-      const dayAmount = dayOrders.reduce(
-        (total, order) => total + order.totalAmount,
-        0
-      );
-      last7DaysAmount[day] = dayAmount;
+      const start = now.clone().subtract(i, "days").startOf("day").toDate();
+      const end = now.clone().subtract(i, "days").endOf("day").toDate();
+
+      const agg = await Order.aggregate([
+        { $match: { createdAt: { $gte: start, $lt: end } } },
+        { $group: { _id: null, total: { $sum: "$totalAmount" } } },
+      ]);
+
+      last7DaysAmount[moment(start).format("ddd").toLowerCase()] =
+        agg[0]?.total || 0;
     }
 
+    /* ---------------- TODAY CATEGORIES ---------------- */
+    const categoryAgg = await Order.aggregate([
+      { $unwind: "$tasks" },
+      {
+        $match: {
+          "tasks.assign_date": { $gte: todayStart, $lt: todayEnd },
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          interior: {
+            $sum: { $cond: [{ $eq: ["$tasks.interior", true] }, 1, 0] },
+          },
+          exterior: {
+            $sum: { $cond: [{ $eq: ["$tasks.exterior", true] }, 1, 0] },
+          },
+        },
+      },
+    ]);
+
+    const categories = {
+      interior: categoryAgg[0]?.interior || 0,
+      exterior: categoryAgg[0]?.exterior || 0,
+    };
+
+    /* ---------------- TODAY ON-DEMAND ---------------- */
+    const onDemandAgg = await Order.aggregate([
+      {
+        $match: {
+          bookingTime: { $exists: true, $ne: null },
+          createdAt: { $gte: todayStart, $lt: todayEnd },
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          total: { $sum: 1 },
+          completed: {
+            $sum: {
+              $cond: [{ $eq: ["$paymentStatus", "Completed"] }, 1, 0],
+            },
+          },
+          pending: {
+            $sum: {
+              $cond: [{ $ne: ["$paymentStatus", "Completed"] }, 1, 0],
+            },
+          },
+        },
+      },
+    ]);
+
+    const on_demand_orders = {
+      total: onDemandAgg[0]?.total || 0,
+      completed: onDemandAgg[0]?.completed || 0,
+      pending: onDemandAgg[0]?.pending || 0,
+    };
+
+    /* ---------------- TODAY SUBSCRIPTION ---------------- */
+    const subscriptionAgg = await Order.aggregate([
+      {
+        $match: {
+          vehicleId: { $exists: true, $ne: null },
+          createdAt: { $gte: todayStart, $lt: todayEnd },
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          total: { $sum: 1 },
+          completed: {
+            $sum: {
+              $cond: [{ $eq: ["$paymentStatus", "Completed"] }, 1, 0],
+            },
+          },
+          pending: {
+            $sum: {
+              $cond: [{ $ne: ["$paymentStatus", "Completed"] }, 1, 0],
+            },
+          },
+        },
+      },
+    ]);
+
+    const subscription_orders = {
+      total: subscriptionAgg[0]?.total || 0,
+      completed: subscriptionAgg[0]?.completed || 0,
+      pending: subscriptionAgg[0]?.pending || 0,
+    };
+
+    /* ---------------- TODAY TASK STATUS (FIXED) ---------------- */
+   const taskAgg = await Order.aggregate([
+  { $unwind: "$tasks" },
+  {
+    $match: {
+      "tasks.assign_date": { $gte: todayStart, $lt: todayEnd },
+    },
+  },
+  {
+    $group: {
+      _id: null,
+
+      totalTasks: { $sum: 1 },
+
+      completedTasks: {
+        $sum: {
+          $cond: [{ $eq: ["$tasks.is_done", true] }, 1, 0],
+        },
+      },
+
+      pendingTasks: {
+        $sum: {
+          $cond: [
+            {
+              $and: [
+                { $eq: ["$tasks.is_done", false] },
+                { $ne: ["$tasks.assigned_to", null] },
+              ],
+            },
+            1,
+            0,
+          ],
+        },
+      },
+
+      unassignedTasks: {
+        $sum: {
+          $cond: [{ $eq: ["$tasks.assigned_to", null] }, 1, 0],
+        },
+      },
+    },
+  },
+]);
+
+
+   const taskStats = {
+  total: taskAgg[0]?.totalTasks || 0,
+  completed: taskAgg[0]?.completedTasks || 0,
+  pending: taskAgg[0]?.pendingTasks || 0,
+  unassigned: taskAgg[0]?.unassignedTasks || 0,
+};
+
+
+    /* ---------------- FINAL RESPONSE ---------------- */
     res.status(200).json({
       success: true,
       orders: {
@@ -1404,39 +1529,31 @@ exports.getAllDashboard = async (req, res) => {
         months_order,
         yearly_order,
         total_order,
-        available_agents: 0,
-        pending_order: 0,
-        completed_order: 10,
-        "categories": {
-          "exterior": 10,
-          "interior": 7,
-          "compensation": 5
-        },
-        "on_demand_orders": {
-          "total": 20,
-          "completed": 15,
-          "pending": 5
-        },
-        "subscription_orders": {
-          "total": 30,
-          "completed": 25,
-          "pending": 5
-        }
+        categories,
+        on_demand_orders,
+        subscription_orders,
       },
       sales,
       chartYears,
-      // chartWeek,
       last7DaysAmount,
+      todayTasks: {
+  date: now.format("YYYY-MM-DD"),
+  totalTasks: taskStats.total,
+  completedTasks: taskStats.completed,
+  pendingTasks: taskStats.pending,
+  unassignedTasks: taskStats.unassigned,
+},
+
       agents: {
-        "available_agents": 2
-      }
+        available_agents: 2,
+      },
+      serverTime: now.format("YYYY-MM-DD HH:mm:ss"),
     });
   } catch (error) {
-    console.error(error);
+    console.error("Dashboard Error:", error);
     res.status(500).json({ success: false, error: "Server error" });
   }
 };
-
 // Create a new order with payment
 exports.createOrderWithRazorpay = async (req, res) => {
   try {
@@ -1604,3 +1721,138 @@ exports.CancelOrderById = async (req, res) => {
 
 
 
+
+exports.updateOrderNote = async (req, res) => {
+  try {
+      const { id } = req.params;
+      const { note } = req.body;
+
+      if (!note || !note.trim()) {
+        return res.status(400).json({
+          success: false,
+          message: "Note is required",
+        });
+      }
+
+      const updatedOrder = await Order.findByIdAndUpdate(
+        id,
+        { note },
+        { new: true }
+      );
+
+      if (!updatedOrder) {
+        return res.status(404).json({
+          success: false,
+          message: "Order not found",
+        });
+      }
+
+      res.status(200).json({
+        success: true,
+        message: "Order note updated successfully",
+        order: updatedOrder,
+      });
+
+    } catch (error) {
+      console.error("Update Order Note Error:", error);
+      res.status(500).json({
+        success: false,
+        message: "Server error",
+      });
+    }
+}
+
+exports.createOrderTask = async (req, res) => {
+  try {
+    const {
+      orderId,
+      assign_date,
+      interior,
+      exterior,
+    } = req.body;
+
+    if (!orderId || !assign_date) {
+      return res.status(400).json({
+        success: false,
+        message: "Required fields missing",
+      });
+    }
+
+    const order = await Order.findById(orderId);
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message: "Order not found",
+      });
+    }
+
+    const newTask = {
+      task_id: `${Date.now()}-${Math.random()}`,
+      productId: order.tasks[0].productId || null,
+      date: new Date(),
+        assign_date: new Date(assign_date),
+      time_complete: null,
+
+      is_done: false,
+      interior: interior ?? false,
+      exterior: exterior ?? true,
+    };
+
+    order.tasks.push(newTask);
+
+    // Optional: update order status
+
+    await order.save();
+
+    res.status(201).json({
+      success: true,
+      message: "Task assigned successfully",
+      task: newTask,
+      orderId: order._id,
+    });
+  } catch (error) {
+    console.error("Create task error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+    });
+  }
+};
+
+exports.deleteTask = async (req, res) => {
+  try {
+    const { order_id, task_id } = req.params;
+
+    if (!order_id || !task_id) {
+      return res.status(400).json({
+        success: false,
+        message: "order_id and task_id are required",
+      });
+    }
+
+    const order = await Order.findById(order_id);
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message: "Order not found",
+      });
+    }
+
+    order.tasks = order.tasks.filter(
+      (task) => task.task_id !== task_id
+    );
+
+    await order.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Task deleted successfully",
+    });
+  } catch (error) {
+    console.error("Delete Task Error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+    });
+  }
+};

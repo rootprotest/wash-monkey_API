@@ -45,7 +45,8 @@ exports.createCoupon = async (req, res) => {
       maxlimit,
       isShow_display,
       lang,
-      screen_Id
+      screen_Id,
+      coupon_type
     } = req.body;
     const newCoupon = await Coupon.create({
       code,
@@ -57,7 +58,8 @@ exports.createCoupon = async (req, res) => {
       category_id,
       isShow_display,
       lang,
-      screen_Id
+      screen_Id,
+      coupon_type
     });
     res.status(200).json({ success: true, coupon: newCoupon });
   } catch (error) {
@@ -81,6 +83,7 @@ exports.updateCouponById = async (req, res) => {
       timesUsed,
       isShow_display,
       lang,
+      coupon_type
     } = req.body;
 
     // Check if the Coupon exists
@@ -103,6 +106,7 @@ exports.updateCouponById = async (req, res) => {
     existingCoupon.isShow_display = isShow_display;
     existingCoupon.category_id = category_id;
     existingCoupon.lang = lang;
+    existingCoupon.coupon_type = coupon_type;
 
     // Save the updated Coupon
     const updatedCoupon = await existingCoupon.save();
@@ -176,17 +180,14 @@ exports.applyCoupon = async (req, res) => {
     };
 
     // Handle different coupon types
-    if (coupon.coupon_type === 'percentage') {
+    if (coupon.coupon_type === "PERCENTAGE") {
       // For percentage discount coupons
       bodysend.coupon_type = coupon.coupon_type;
-    } else if (coupon.coupon_type === 'bogo') {
+    } else if (coupon.coupon_type === 'FLAT') {
       // For buy one get one free (BOGO) coupons
       bodysend.coupon_type = coupon.coupon_type;
     }
-    else if (coupon.coupon_type === 'amount') {
-      // For buy one get one free (BOGO) coupons
-      bodysend.coupon_type = coupon.coupon_type;
-    }
+    
 
     res.status(200).json({ success: true, bodysend, message: "Coupon applied successfully" });
   } catch (error) {
