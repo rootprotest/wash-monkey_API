@@ -4,6 +4,9 @@ node_modules/
 out/
 key_f6aab567467b4f26864f627aa989a7b6.pem
 key_3f653475822e4700a38a4db029486b10.pem
+src/file/*.json
+src/file/
+*.json
 config.json
 privateKey.pem
 # Environment variables
