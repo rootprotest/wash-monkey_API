@@ -16,6 +16,11 @@ router.put('/taskupdateOrderById/:id', OrderController.taskupdateOrderById);
 
 router.put('/rescheduleTaskOrderById/:id', OrderController.rescheduleTaskOrderById);
 
+// Using PATCH for partial update
+router.patch(
+  '/rescheduleFormwashTask/:orderId/:taskId', 
+  OrderController.rescheduleFormwashTask
+);
 router.delete('/deleteOrder/:id', OrderController.deleteOrderById);
 
 router.get('/orderGetById/:id', OrderController.getByOrderID);

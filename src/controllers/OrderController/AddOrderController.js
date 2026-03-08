@@ -564,8 +564,10 @@ exports.getAllOrder = async (req, res) => {
       : { userId };
 
     // 1️⃣ Fetch all orders
+      await Order.updateOverdueTasks();
+
     const orders = await Order.find(filter)
-      .select("_id userId paymentStatus createdAt totalAmount productIds tasks walletamount applycoupon")
+      .select("_id userId paymentStatus createdAt totalAmount productIds tasks walletamount applycoupon razorpay_payment_id")
       .sort({ createdAt: -1 })
       .lean();
 
@@ -603,6 +605,7 @@ exports.getAllOrder = async (req, res) => {
 
 exports.getByOrderID = async (req, res) => {
   try {
+    await Order.updateOverdueTasks();
     const order = await Order.findById(req.params.id).lean();
 
     if (!order) {
@@ -658,6 +661,8 @@ exports.getByOrderID = async (req, res) => {
 exports.getAllOrderList = async (req, res) => {
   try {
     // Fetch all orders for the user
+      await Order.updateOverdueTasks();
+
     const orderList = await Order.find().sort({ createdAt: -1 });
 
 
@@ -696,6 +701,8 @@ exports.getAllTaskListForToday = async (req, res) => {
   try {
     // Get today's date as string for comparison
     const todayStr = new Date().toDateString();
+      await Order.updateOverdueTasks();
+
 
     // Fetch all orders
     const allOrders = await Order.find();
@@ -832,6 +839,8 @@ exports.getTodayTasksOnlyForSuperAdmin = async (req, res) => {
     const targetDate = date
       ? new Date(date).toDateString()
       : new Date().toDateString(); // fallback = today
+
+        await Order.updateOverdueTasks();
 
     const allOrders = await Order.find();
 
@@ -1194,9 +1203,8 @@ exports.taskupdateOrderById = async (req, res) => {
 exports.rescheduleTaskOrderById = async (req, res) => {
   try {
     const orderId = req.params.id;
-    const { old_id, task_id, new_date } = req.body; // old task and the task to update
-    console.log({ old_id, task_id, new_date });
-    
+    const { old_id, task_id, new_date, task_assign_person } = req.body; 
+    console.log({ old_id, task_id, new_date, task_assign_person });
 
     if (!old_id || !task_id || !new_date) {
       return res.status(400).json({
@@ -1205,9 +1213,9 @@ exports.rescheduleTaskOrderById = async (req, res) => {
       });
     }
 
-  const newDateObj = new Date(new_date);
+    const newDateObj = new Date(new_date);
     const today = new Date();
-    today.setHours(0, 0, 0, 0); // reset time
+    today.setHours(0, 0, 0, 0);
     const tomorrow = new Date(today);
     tomorrow.setDate(today.getDate() + 1);
 
@@ -1227,21 +1235,24 @@ exports.rescheduleTaskOrderById = async (req, res) => {
     }
 
     // --- OLD TASK ---
-    const oldTask = existingOrder.tasks.find(task => task.task_id === old_id);
-    if (!oldTask) {
-      return res.status(404).json({
-        success: false,
-        message: "Old task not found",
-      });
-    }
+const oldTask = existingOrder.tasks.find(task => task.task_id === old_id);
+if (!oldTask) {
+  return res.status(404).json({
+    success: false,
+    message: "Old task not found",
+  });
+}
 
-    // Only update if not done
-    if (!oldTask.is_done) {
-      oldTask.interior = false;
-      oldTask.exterior = true;
-    }
+// Only update if old task status is "Service Not Done"
+if (old_id) {
+  oldTask.status = "Rescheduled";
+  oldTask.task_assign_person = task_assign_person || oldTask.task_assign_person || "Service Not Done - Rescheduled";
 
-    // --- TASK TO UPDATE ---
+  // 🔹 Update interior/exterior specifically for old task
+  oldTask.interior = true;   // mark interior as active for old task
+  oldTask.exterior = false;  // mark exterior as inactive for old task
+}
+    // --- TASK TO UPDATE (NEW TASK) ---
     const task = existingOrder.tasks.find(task => task.task_id === task_id);
     if (!task) {
       return res.status(404).json({
@@ -1250,11 +1261,11 @@ exports.rescheduleTaskOrderById = async (req, res) => {
       });
     }
 
-    // Only update if not done
     if (!task.is_done) {
-      task.assign_date = new Date(new_date);
-      task.interior = true;
+      // inherit interior/exterior from old task
+      task.interior =  true;
       task.exterior = false;
+     
     }
 
     const updatedOrder = await existingOrder.save();
@@ -1273,8 +1284,6 @@ exports.rescheduleTaskOrderById = async (req, res) => {
     });
   }
 };
-
-
 // Delete a specific order by ID
 exports.deleteOrderById = async (req, res) => {
   try {
@@ -1301,10 +1310,49 @@ exports.deleteOrderById = async (req, res) => {
   }
 };
 
+exports.rescheduleFormwashTask = async (req, res) => {
+  try {
+    const { orderId, taskId } = req.params; // old FormWash task
+    const { newTaskId } = req.body;          // new task to become FormWash
+
+    const order = await Order.findById(orderId);
+    if (!order) return res.status(404).json({ message: "Order not found" });
+
+    // Find the old FormWash task
+    const oldTask = order.tasks.find(t => t.task_id.toString() === taskId && t.formwash === true);
+    if (!oldTask) return res.status(404).json({ message: "Old FormWash task not found" });
+
+    // Find the new task to become FormWash
+    const newTask = order.tasks.find(t => t.task_id.toString() === newTaskId);
+    if (!newTask) return res.status(404).json({ message: "New task not found" });
+
+    // Switch FormWash flags
+    oldTask.formwash = false;
+    oldTask.interior = false; // keep other flags as is
+    oldTask.exterior = true;
+
+    newTask.formwash = true;
+    newTask.interior = false;
+    newTask.exterior = false;
+
+    await order.save();
+
+    return res.status(200).json({
+      message: "FormWash task shifted successfully",
+      oldTask,
+      newTask,
+      orderId: order._id,
+    });
+  } catch (error) {
+    console.error("Error shifting FormWash task:", error);
+    return res.status(500).json({ message: "Server error" });
+  }
+};
 /* ---------------- DASHBOARD ---------------- */
 exports.getAllDashboard = async (req, res) => {
   try {
     const now = moment();
+  await Order.updateOverdueTasks();
 
     /* ---------------- DATE RANGES ---------------- */
     const todayStart = now.clone().startOf("day").toDate();
