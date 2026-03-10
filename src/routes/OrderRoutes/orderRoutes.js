@@ -40,6 +40,8 @@ router.post('/orders', OrderController.createOrderWithRazorpay);
 
 router.post('/tasks-today', OrderController.getAllTaskListForTodays);
 
+router.put('/customer-not-available', OrderController.customerNotAvailable);
+
 router.get('/tasks-today-list/tasks', OrderController.getTodayTasksOnlyForSuperAdmin);
 
 router.post('/trackStatusById', OrderController.OrderStatusById);

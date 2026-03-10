@@ -769,63 +769,106 @@ const haversineDistance = (lat1, lon1, lat2, lon2) => {
 
 exports.getAllTaskListForTodays = async (req, res) => {
   try {
-    const { latitude: userLat, longitude: userLng, assign_id } = req.body; // lat/lng from client
-
-    console.log(assign_id, "assign_id");
+    const { latitude: userLat, longitude: userLng, assign_id, status } = req.body;
 
     const todayStr = new Date().toDateString();
+
     const allOrders = await Order.find();
 
     const taskOrderPromises = allOrders.map(async (order) => {
       if (!Array.isArray(order.tasks)) return null;
 
-      const hasTodayTask = order.tasks.some((task) => {
+      const todayTasks = order.tasks.filter((task) => {
         const assignDate = new Date(task.assign_date).toDateString();
         const isToday = assignDate === todayStr;
 
         if (assign_id) {
-          const isAssignedToUser = task.assign_id?.toString() === assign_id;
-          return isToday && isAssignedToUser;
-        } else {
-          const isStatusOk = order.paymentStatus === "Confirmed";
-          return isToday && isStatusOk;
+          return isToday && task.assign_id?.toString() === assign_id;
         }
+
+        return isToday;
       });
 
+      if (!todayTasks.length) return null;
 
-      if (!hasTodayTask) return null;
+      // STATUS FILTER
+      if (status === "new" && order.paymentStatus !== "Confirmed") return null;
+      if (status === "progress" && !["Accepted","Arrived","In Progress"].includes(order.paymentStatus)) return null;
+      if (status === "completed" && order.paymentStatus !== "Completed") return null;
 
       const address = await Address.findById(order.addressId);
       const user = await User.findById(order.userId);
 
-      const productPromises = order.productIds.map(productId => Product.findById(productId));
-      const productsWithDetails = await Promise.all(productPromises);
+      const products = await Promise.all(
+        order.productIds.map((id) => Product.findById(id))
+      );
 
       let distanceInKm = null;
       let googleMapUrl = null;
 
-      if (userLat && userLng && address.latitude && address.longitude) {
-        distanceInKm = haversineDistance(userLat, userLng, address.latitude, address.longitude).toFixed(2);
-googleMapUrl = `https://www.google.com/maps/dir/?api=1&origin=${userLat},${userLng}&destination=${address.latitude},${address.longitude}&travelmode=driving`;
+      if (userLat && userLng && address?.latitude && address?.longitude) {
+        distanceInKm = haversineDistance(
+          userLat,
+          userLng,
+          address.latitude,
+          address.longitude
+        ).toFixed(2);
+
+        googleMapUrl = `https://www.google.com/maps/dir/?api=1&origin=${userLat},${userLng}&destination=${address.latitude},${address.longitude}&travelmode=driving`;
       }
 
       return {
         ...order._doc,
         address,
         user,
-        products: productsWithDetails,
+        products,
+        todayTasks,
         distanceInKm,
-        googleMapUrl
+        googleMapUrl,
       };
     });
 
-    const ordersWithTodayTasks = await Promise.all(taskOrderPromises);
-    const filteredOrders = ordersWithTodayTasks.filter(order => order !== null);
+    const orders = (await Promise.all(taskOrderPromises)).filter(Boolean);
 
-    res.status(200).json({ success: true, orders: filteredOrders });
+    res.status(200).json({
+      success: true,
+      orders,
+    });
   } catch (error) {
     console.error(error);
     res.status(500).json({ success: false, error: "Server error" });
+  }
+};
+
+
+exports.customerNotAvailable = async (req, res) => {
+  try {
+
+    const { orderId, task_id } = req.body;
+
+    const order = await Order.findById(orderId);
+
+    const task = order.tasks.find(t => t.task_id === task_id);
+
+    if (!task) {
+      return res.status(404).json({ message: "Task not found" });
+    }
+
+    task.status = "Customer Not Available";
+    task.task_assign_person = "Customer not available at location";
+    task.time_complete = new Date();
+
+    order.paymentStatus = "Customer Not Available";
+
+    await order.save();
+
+    res.json({
+      success: true,
+      message: "Marked as customer not available"
+    });
+
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 };
 
