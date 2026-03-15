@@ -1288,12 +1288,11 @@ if (!oldTask) {
 
 // Only update if old task status is "Service Not Done"
 if (old_id) {
-  oldTask.status = "Rescheduled";
-  oldTask.task_assign_person = task_assign_person || oldTask.task_assign_person || "Service Not Done - Rescheduled";
+ 
 
   // 🔹 Update interior/exterior specifically for old task
-  oldTask.interior = true;   // mark interior as active for old task
-  oldTask.exterior = false;  // mark exterior as inactive for old task
+  oldTask.interior = false;   // mark interior as active for old task
+  oldTask.exterior = true;  // mark exterior as inactive for old task
 }
     // --- TASK TO UPDATE (NEW TASK) ---
     const task = existingOrder.tasks.find(task => task.task_id === task_id);
@@ -1355,19 +1354,36 @@ exports.deleteOrderById = async (req, res) => {
 
 exports.rescheduleFormwashTask = async (req, res) => {
   try {
-    const { orderId, taskId } = req.params;
+    const { userId, orderId, taskId } = req.params;
     const { newTaskId } = req.body;
 
-    // Check first order in DB
-    const firstOrder = await Order.findOne().sort({ createdAt: 1 });
+    console.log("Params:", { userId, orderId, taskId, newTaskId });
 
-    if (!firstOrder || !firstOrder._id.equals(orderId)) {
+    // Get first order for this user
+    const firstOrder = await Order.findOne({ userId }).sort({ createdAt: 1 });
+
+    console.log("First Order:", firstOrder?._id);
+
+    if (!firstOrder) {
+      return res.status(404).json({
+        message: "No orders found for this user"
+      });
+    }
+
+    // Allow only first order
+    if (firstOrder._id.toString() !== orderId) {
+      console.log("Order is not the first order of user", {
+        firstOrderId: firstOrder._id,
+        requestedOrderId: orderId
+      });
+
       return res.status(400).json({
         message: "FormWash change allowed only for the first order"
       });
     }
 
     const order = await Order.findById(orderId);
+
     if (!order) {
       return res.status(404).json({ message: "Order not found" });
     }
@@ -1410,6 +1426,7 @@ exports.rescheduleFormwashTask = async (req, res) => {
 
   } catch (error) {
     console.error("Error shifting FormWash task:", error);
+
     return res.status(500).json({
       message: "Server error",
       error: error.message

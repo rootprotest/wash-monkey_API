@@ -25,8 +25,7 @@ const ProductSchema = new mongoose.Schema({
   days: { type: Number ,default: 1},
   interior: { type: Number ,default: 0},
   exterior: { type: Number ,default: 0},
-
-
+  formwash: { type: Number ,default: 0},
   created_at: { type: Date, default: Date.now },
   updated_at: { type: Date, default: Date.now }
 
