@@ -115,11 +115,34 @@ const OrderSchema = new mongoose.Schema({
     enum: [
       "Pending",
       "Processing",
-      "Payment Received",
+      "Shipped",
+      "Delivered",
+      "Cancelled",
+      "Refunded",
+      "On Hold",
+      "Completed",
       "Failed",
-      "Refunded"
+      "Returned",
+      "Order Placed",
+      "Confirmed",
+      "Out for Delivery",
+      "Scheduled",
+      "Scheduled",
+      "Accepted",
+      "Technician Assigned",
+      "En Route",
+      "Arrived",
+      "In Progress",
+      "Completed",
+      "Payment Pending",
+      "Payment Received",
+      "Cancelled by User",
+      "Cancelled by Technician",
+      "Rescheduled",
+      "No Show",
+      "Awaiting Review"
     ],
-    default: "Pending"
+    default: "Pending",
   },
 
   orderStatus: {
