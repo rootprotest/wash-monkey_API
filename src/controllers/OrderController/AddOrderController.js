@@ -1355,23 +1355,44 @@ exports.deleteOrderById = async (req, res) => {
 
 exports.rescheduleFormwashTask = async (req, res) => {
   try {
-    const { orderId, taskId } = req.params; // old FormWash task
-    const { newTaskId } = req.body;          // new task to become FormWash
+    const { orderId, taskId } = req.params;
+    const { newTaskId } = req.body;
+
+    // Check first order in DB
+    const firstOrder = await Order.findOne().sort({ createdAt: 1 });
+
+    if (!firstOrder || !firstOrder._id.equals(orderId)) {
+      return res.status(400).json({
+        message: "FormWash change allowed only for the first order"
+      });
+    }
 
     const order = await Order.findById(orderId);
-    if (!order) return res.status(404).json({ message: "Order not found" });
+    if (!order) {
+      return res.status(404).json({ message: "Order not found" });
+    }
 
-    // Find the old FormWash task
-    const oldTask = order.tasks.find(t => t.task_id.toString() === taskId && t.formwash === true);
-    if (!oldTask) return res.status(404).json({ message: "Old FormWash task not found" });
+    // Find old FormWash task
+    const oldTask = order.tasks.find(
+      (t) => t.task_id && t.task_id.toString() === taskId && t.formwash === true
+    );
 
-    // Find the new task to become FormWash
-    const newTask = order.tasks.find(t => t.task_id.toString() === newTaskId);
-    if (!newTask) return res.status(404).json({ message: "New task not found" });
+    if (!oldTask) {
+      return res.status(404).json({ message: "Old FormWash task not found" });
+    }
 
-    // Switch FormWash flags
+    // Find new task
+    const newTask = order.tasks.find(
+      (t) => t.task_id && t.task_id.toString() === newTaskId
+    );
+
+    if (!newTask) {
+      return res.status(404).json({ message: "New task not found" });
+    }
+
+    // Switch flags
     oldTask.formwash = false;
-    oldTask.interior = false; // keep other flags as is
+    oldTask.interior = false;
     oldTask.exterior = true;
 
     newTask.formwash = true;
@@ -1382,13 +1403,17 @@ exports.rescheduleFormwashTask = async (req, res) => {
 
     return res.status(200).json({
       message: "FormWash task shifted successfully",
-      oldTask,
-      newTask,
       orderId: order._id,
+      oldTask,
+      newTask
     });
+
   } catch (error) {
     console.error("Error shifting FormWash task:", error);
-    return res.status(500).json({ message: "Server error" });
+    return res.status(500).json({
+      message: "Server error",
+      error: error.message
+    });
   }
 };
 /* ---------------- DASHBOARD ---------------- */
