@@ -505,7 +505,7 @@ const sendInProgressSMS = async (
 
 exports.createOrder = async (req, res) => {
   try {
-    const { userId, addressId, productIds, totalAmount, delivery, razorpay_payment_id, paymentStatus, applycoupon, quantity, tasks, bookingTime, walletamount,interior,vehicleId } = req.body;
+    const { userId, addressId, productIds, totalAmount, delivery, razorpay_payment_id, paymentStatus, applycoupon, quantity, tasks, bookingTime, walletamount,interior,vehicleId,formwashcount } = req.body;
 
     const newOrder = await Order.create({
       userId,
@@ -521,7 +521,8 @@ exports.createOrder = async (req, res) => {
       bookingTime,
       walletamount,
       interior,
-      vehicleId
+      vehicleId,
+      formwashcount
     });
 
     const user = await User.findById(userId);
@@ -1383,6 +1384,8 @@ exports.rescheduleFormwashTask = async (req, res) => {
     }
 
     const order = await Order.findById(orderId);
+   // decrease formwashcount
+    order.formwashcount = Math.max((order.formwashcount || 0) - 1, 0);
 
     if (!order) {
       return res.status(404).json({ message: "Order not found" });

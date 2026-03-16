@@ -209,7 +209,10 @@ const OrderSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
-
+  formwashcount: {
+    type: Number,
+    default: 0
+  },
   tasks: [TaskSchema],
 
   createdAt: {

@@ -150,19 +150,33 @@ exports.applyCoupon = async (req, res) => {
 
     const coupon = await Coupon.findOne({ code: couponCode, isActive: true });
 
+    // Invalid coupon
     if (!coupon) {
-      return res.status(400).json({ success: false, message: "Invalid coupon code" });
+      return res.status(400).json({
+        success: false,
+        message: "⚠️ Oops! That coupon code doesn’t seem valid. Please check and try again."
+      });
     }
 
+    // Coupon usage limit reached
     if (coupon.maxlimit !== undefined && coupon.maxlimit === 0) {
-      return res.status(400).json({ success: false, message: "Coupon has reached its maximum usage limit" });
+      return res.status(400).json({
+        success: false,
+        message: "⚠️ This coupon has reached its usage limit. Try another Wash Monkey offer!"
+      });
     }
 
-    // Check if the coupon has already been used by the user in the Order table
-    const orderWithCoupon = await Order.findOne({ applycoupon: couponCode, userId: userId });
+    // Check if the coupon has already been used by the user
+    const orderWithCoupon = await Order.findOne({
+      applycoupon: couponCode,
+      userId: userId
+    });
 
     if (orderWithCoupon) {
-      return res.status(400).json({ success: false, message: "Coupon has already been used by this user" });
+      return res.status(400).json({
+        success: false,
+        message: "🐒 Monkey deal removed! You can apply another coupon anytime."
+      });
     }
 
     // Decrease maxlimit and increase timesUsed
@@ -170,8 +184,9 @@ exports.applyCoupon = async (req, res) => {
     coupon.timesUsed = (coupon.timesUsed || 0) + 1;
 
     // Save the updated coupon
-    const updatedCoupon = await coupon.save();
-    // Prepare the response body based on coupon type
+    await coupon.save();
+
+    // Prepare response
     let bodysend = {
       code: coupon.code,
       description: coupon.description,
@@ -179,19 +194,23 @@ exports.applyCoupon = async (req, res) => {
       coupon_type: coupon.coupon_type
     };
 
-    // Handle different coupon types
     if (coupon.coupon_type === "PERCENTAGE") {
-      // For percentage discount coupons
       bodysend.coupon_type = coupon.coupon_type;
-    } else if (coupon.coupon_type === 'FLAT') {
-      // For buy one get one free (BOGO) coupons
+    } else if (coupon.coupon_type === "FLAT") {
       bodysend.coupon_type = coupon.coupon_type;
     }
-    
 
-    res.status(200).json({ success: true, bodysend, message: "Coupon applied successfully" });
+    res.status(200).json({
+      success: true,
+      bodysend,
+      message: "🐒 Woohoo! Monkey Magic Activated! Your coupon is applied. Your car is about to shine!"
+    });
+
   } catch (error) {
     console.error(error);
-    res.status(500).json({ success: false, error: "Server error" });
+    res.status(500).json({
+      success: false,
+      error: "Server error"
+    });
   }
 };
