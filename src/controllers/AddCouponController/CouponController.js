@@ -175,7 +175,7 @@ exports.applyCoupon = async (req, res) => {
     if (orderWithCoupon) {
       return res.status(400).json({
         success: false,
-        message: "🐒 Monkey deal removed! You can apply another coupon anytime."
+        message: "This coupon has expired. Stay tuned for more Wash Monkey deals!"
       });
     }
 
