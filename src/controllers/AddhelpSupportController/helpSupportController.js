@@ -136,27 +136,53 @@ const responseMap = {
 // 🤖 MINI CHATBOT LOGIC
 ////////////////////////////////////////////////////////////
 
-const generateBotReply = (message) => {
+const generateBotReply = (message, previousMessages = []) => {
   if (!message) {
     return "🙏 Please describe your issue so we can assist you.";
   }
 
   const text = message.toLowerCase();
 
+  // ✅ 1. Urgent / Human Request Detection
+  if (
+    text.includes("urgent") ||
+    text.includes("agent") ||
+    text.includes("human") ||
+    text.includes("call me") ||
+    text.includes("talk to someone")
+  ) {
+    return "🚨 Your request has been marked as *high priority*. Our support team will contact you shortly.";
+  }
+
+  // ✅ 2. Avoid repeating same reply
+  const lastBotMessages = previousMessages
+    .filter(m => m.sender === "bot")
+    .map(m => m.content);
+
   for (const category in keywordMap) {
     for (const keyword of keywordMap[category]) {
       if (text.includes(keyword)) {
-        return responseMap[category];
+
+        const reply = responseMap[category];
+
+        // ❌ If already sent → skip repeating
+        if (lastBotMessages.includes(reply)) {
+          continue;
+        }
+
+        return reply;
       }
     }
   }
 
-  return "🙏 Thank you for contacting WashMonkey Support. Our team will review your concern and respond shortly.";
+  // ✅ 3. Fallback (only once)
+  if (!lastBotMessages.includes("default")) {
+    return "🙏 Thank you for contacting WashMonkey Support. Our team will review your concern and respond shortly.";
+  }
+
+  return null; // don't spam
 };
 
-////////////////////////////////////////////////////////////
-// 🔢 TICKET NUMBER
-////////////////////////////////////////////////////////////
 
 const generateTicketNumber = () => {
   const now = new Date();
@@ -166,47 +192,13 @@ const generateTicketNumber = () => {
   const DD = String(now.getDate()).padStart(2, "0");
   const HH = String(now.getHours()).padStart(2, "0");
   const mm = String(now.getMinutes()).padStart(2, "0");
+  const ss = String(now.getSeconds()).padStart(2, "0");
 
-  return `WM${YYYY}${MM}${DD}${HH}${mm}`;
+  const random = Math.floor(10 + Math.random() * 90); // ✅ 2-digit (10–99)
+
+  return `WM${YYYY}${MM}${DD}${HH}${mm}${ss}${random}`;
 };
 
-////////////////////////////////////////////////////////////
-// 📧 EMAIL FUNCTION
-////////////////////////////////////////////////////////////
-
-// const sendSupportEmail = async (ticket) => {
-//   try {
-//     const transporter = nodemailer.createTransport({
-//       host: "smtp.gmail.com",
-//       port: 587,
-//       secure: false,
-//       auth: {
-//         user: "monkeywashclean@gmail.com",
-//         pass: "oqvciwgddvzeecxm",
-//       },
-//     });
-
-//     const user = ticket.userId || {};
-//     const emailcoustion = user.email || "N/A";
-
-//     await transporter.sendMail({
-//       from: `"WashMonkey Support" <monkeywashclean@gmail.com>`,
-//       to: "support@washmonkey.in",
-//       subject: "🚨 New Support Ticket Created",
-//       html: `
-//         <h2>New Support Ticket</h2>
-//         <p><strong>Ticket:</strong> ${ticket.ticketNumber}</p>
-//         <p><strong>Name:</strong> ${user.firstname || ""} ${user.lastname || ""}</p>
-//         <p><strong>Email:</strong> ${user.email || "-"}</p>
-//         <p><strong>Issue:</strong> ${ticket.issue}</p>
-//         <p><strong>Description:</strong> ${ticket.description}</p>
-//       `,
-//     });
-
-//   } catch (error) {
-//     console.error("Email Error:", error);
-//   }
-// };
 
 
 const sendSupportEmail = async (ticket) => {
@@ -224,45 +216,73 @@ const sendSupportEmail = async (ticket) => {
     const user = ticket.userId || {};
     const customerEmail = user.email;
 
+    const ticketId = ticket.ticketNumber;
+    const issueCategory = ticket.issue || "General Inquiry";
+
+    const now = new Date();
+    const formattedDate = now.toLocaleString("en-IN", {
+      dateStyle: "medium",
+      timeStyle: "short",
+    });
+
     /* -------------------------
        1️⃣ Email to Support Team
     -------------------------- */
     await transporter.sendMail({
       from: `"WashMonkey Support" <${process.env.SUPPORT_EMAIL}>`,
       to: "support@washmonkey.in",
-      subject: "🚨 New Support Ticket Created",
+      subject: `New Support Ticket Created - ${ticketId}`,
       html: `
         <h2>New Support Ticket</h2>
-        <p><strong>Ticket:</strong> ${ticket.ticketNumber}</p>
+        <p><strong>Ticket:</strong> ${ticketId}</p>
         <p><strong>Name:</strong> ${user.firstname || ""} ${user.lastname || ""}</p>
         <p><strong>Email:</strong> ${customerEmail || "-"}</p>
-        <p><strong>Issue:</strong> ${ticket.issue}</p>
+        <p><strong>Issue:</strong> ${issueCategory}</p>
         <p><strong>Description:</strong> ${ticket.description}</p>
       `,
     });
 
     /* -------------------------
-       2️⃣ Thank You Email to Customer
+       2️⃣ Custom Email to Customer ✅
     -------------------------- */
     if (customerEmail) {
       await transporter.sendMail({
-        from: `"WashMonkey Support"`,
+        from: `"Wash Monkey Support" <${process.env.SUPPORT_EMAIL}>`,
         to: customerEmail,
-        subject: "✅ We've Received Your Support Request",
+
+        // ✅ SUBJECT FORMAT
+       subject: `Ticket #${ticketId} – ${issueCategory} | Wash Monkey Support`,
+
+
+        // ✅ YOUR CUSTOM TEMPLATE
         html: `
-          <h2>Hi ${user.firstname || "Customer"},</h2>
-          
-          <p>Thank you for contacting <strong>WashMonkey</strong> 🐵</p>
-          
-          <p>Your support ticket has been successfully submitted.</p>
+          <p>Hi ${user.firstname || "Customer"},</p>
 
-          <p><strong>Ticket Number:</strong> ${ticket.ticketNumber}</p>
-          <p><strong>Issue:</strong> ${ticket.issue}</p>
+          <p>Thank you for contacting <strong>Wash Monkey</strong>! 🐒🚗</p>
 
-          <p>Our team will review your request and get back to you as soon as possible.</p>
+          <p>Your request has been successfully received, and a support ticket has been created. Our team is currently reviewing your concern.</p>
+
+          <h3>Ticket Details:</h3>
+
+          <ul>
+            <li><strong>Ticket Number:</strong> ${ticketId}</li>
+            <li><strong>Issue Category:</strong> ${issueCategory}</li>
+            <li><strong>Submitted On:</strong> ${formattedDate}</li>
+          </ul>
+
+          <p>Our support team will reach out to you within <strong>24 hours</strong>.</p>
+
+          <p>For immediate assistance, you can call us at <strong>+91-81 4827 4827</strong>, and our team will be happy to help you.</p>
+
+          <p><strong>Note:</strong> Wash Monkey observes a weekly holiday on Tuesdays. Requests raised during this period will be attended to on the next working day. We truly appreciate your patience.</p>
+
+          <p>If you have any additional details to share, simply reply to this email quoting your ticket number.</p>
 
           <br/>
-          <p>Best Regards,<br/>WashMonkey Support Team</p>
+
+          <p>Warm regards,<br/>
+          Wash Monkey Support Team<br/>
+          🌐 <a href="https://www.washmonkey.in">www.washmonkey.in</a></p>
         `,
       });
     }
@@ -288,33 +308,61 @@ exports.createSupportTicket = async (req, res) => {
 
     const ticketNumber = generateTicketNumber();
 
+    // ✅ FILE HANDLING (FROM GCP)
+    let fileUrl = null;
+    let fileType = null;
+    let fileName = null;
+
+    if (req.fileUrls && req.fileUrls.file && req.fileUrls.file.length > 0) {
+      fileUrl = req.fileUrls.file[0];
+
+      const uploadedFile = req.files.file[0];
+
+      fileName = uploadedFile.originalname;
+
+      if (uploadedFile.mimetype.startsWith("image")) {
+        fileType = "image";
+      } else if (uploadedFile.mimetype === "application/pdf") {
+        fileType = "pdf";
+      } else {
+        fileType = "other";
+      }
+    }
+
+    // ✅ PREVENT EMPTY MESSAGE ERROR
+    const userMessageContent =
+      description?.trim() ||
+      (fileUrl ? "📎 Attachment uploaded" : "No message provided");
+
     const newTicket = await HelpSupport.create({
       ticketNumber,
       userId,
       issue,
       subIssue,
       description,
-      details,
+      details: details ? JSON.parse(details) : {},
+
+      // ✅ SAVE FILE IN ROOT
+      fileUrl,
+      fileType,
+      fileName,
+
+      messages: [
+        {
+          sender: "user",
+          content: userMessageContent,
+        },
+        {
+          sender: "bot",
+          content:
+            "👋 Hello! Your support ticket has been created. Please describe your issue clearly.",
+        },
+      ],
     });
 
     const populatedTicket = await HelpSupport.findById(newTicket._id)
       .populate("userId", "firstname lastname email mobilenumber");
 
-    // 🤖 AUTO WELCOME MESSAGE
-    await HelpSupport.findByIdAndUpdate(
-      newTicket._id,
-      {
-        $push: {
-          messages: {
-            sender: "bot",
-            content:
-              "👋 Hello! Your support ticket has been created. Please describe your issue clearly.",
-          },
-        },
-      }
-    );
-
-    // 📧 Send Email
     sendSupportEmail(populatedTicket);
 
     res.status(200).json({
@@ -411,15 +459,16 @@ exports.replyToSupportTicket = async (req, res) => {
       content
     });
 
-    // 🤖 AUTO BOT REPLY IF USER
-    if (sender === "user") {
-      const botReply = generateBotReply(content);
+  if (sender === "user") {
+  const botReply = generateBotReply(content, ticket.messages);
 
-      ticket.messages.push({
-        sender: "bot",
-        content: botReply
-      });
-    }
+  if (botReply) {
+    ticket.messages.push({
+      sender: "bot",
+      content: botReply
+    });
+  }
+}
 
     await ticket.save();
 

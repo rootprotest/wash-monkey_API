@@ -34,6 +34,10 @@ const helpSupportSchema = new mongoose.Schema({
   description: {
     type: String,
   },
+  // ✅ NEW FIELDS
+    fileUrl: String,
+    fileType: String, // image | pdf | other
+    fileName: String,
 details: {
     type: Object, // ✅ Changed from String to Object
   },

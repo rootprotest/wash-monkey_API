@@ -1,9 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const helpSupportController = require('../../controllers/AddhelpSupportController/helpSupportController');
+const { uploadHandler } = require("../../Image/multerSetup")
 
 // Create a new ticket
-router.post('/create', helpSupportController.createSupportTicket);
+router.post('/create', uploadHandler,helpSupportController.createSupportTicket);
 
 // Get all tickets (admin)
 router.get('/', helpSupportController.getAllSupportTickets);
