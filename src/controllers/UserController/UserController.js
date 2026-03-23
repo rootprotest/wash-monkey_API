@@ -231,12 +231,12 @@ module.exports = {
         );
 
         // Check if user exists
-        if (!user) {
-          return res
-            .status(401)
-            .json({ success: false, message: "Invalid credentials" });
-        }
-
+     if (!user) {
+  return res.status(404).json({
+    success: false,
+    message: "Account not found. Please sign up before logging in.",
+  });
+}
 
         console.log(!user.verified, user.UserType === "3");
         // Check if user exists
@@ -333,7 +333,6 @@ module.exports = {
         password,
         mobilenumber,
         UserType,
-
         lang,
         google_signin
       } = req.body;
@@ -418,30 +417,30 @@ module.exports = {
   },
 
   listgetUsers: async (req, res) => {
-  try {
-    const { userType } = req.query;
+    try {
+      const { userType } = req.query;
 
-    // Build filter condition
-    const filter = {};
-    if (userType) {
-      filter.UserType = userType;
+      // Build filter condition
+      const filter = {};
+      if (userType) {
+        filter.UserType = userType;
+      }
+
+      // Fetch users with optional filter
+      const users = await User.find(filter);
+
+      return res.status(200).json({
+        success: true,
+        users,
+      });
+    } catch (error) {
+      console.error("listUsers error:", error);
+      return res.status(500).json({
+        success: false,
+        error: "Server error",
+      });
     }
-
-    // Fetch users with optional filter
-    const users = await User.find(filter);
-
-    return res.status(200).json({
-      success: true,
-      users,
-    });
-  } catch (error) {
-    console.error("listUsers error:", error);
-    return res.status(500).json({
-      success: false,
-      error: "Server error",
-    });
-  }
-},
+  },
 
 
   getUsers: async (req, res) => {
@@ -658,123 +657,123 @@ module.exports = {
     }
   },
   deleteUsers: async (req, res) => {
-  try {
-    const adminId = req.params.id;
+    try {
+      const adminId = req.params.id;
 
-    // Check if user exists
-    const adminToDelete = await User.findById(adminId);
+      // Check if user exists
+      const adminToDelete = await User.findById(adminId);
 
-    if (!adminToDelete) {
-      return res.status(404).json({
+      if (!adminToDelete) {
+        return res.status(404).json({
+          success: false,
+          error: "User not found",
+        });
+      }
+
+      // Soft delete: mark user as unverified
+      adminToDelete.verified = false;
+      await adminToDelete.save();
+
+      res.status(200).json({
+        success: true,
+        message: "User soft deleted successfully",
+      });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({
         success: false,
-        error: "User not found",
+        error: "Server error",
       });
     }
+  },
 
-    // Soft delete: mark user as unverified
-    adminToDelete.verified = false;
-    await adminToDelete.save();
+  userGetById: async (req, res) => {
+    try {
+      const userId = req.params.id;
 
-    res.status(200).json({
-      success: true,
-      message: "User soft deleted successfully",
-    });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({
-      success: false,
-      error: "Server error",
-    });
-  }
-},
+      // 1️⃣ Fetch user
+      const userData = await User.findById(userId).populate("mainAddress");
 
-userGetById: async (req, res) => {
-  try {
-    const userId = req.params.id;
+      if (!userData) {
+        return res.status(404).json({
+          success: false,
+          error: "User not found",
+        });
+      }
 
-    // 1️⃣ Fetch user
-    const userData = await User.findById(userId).populate("mainAddress");
+      // 2️⃣ Check verification
+      if (!userData.verified) {
+        return res.status(401).json({
+          success: false,
+          message: "Account not Verified",
+        });
+      }
 
-    if (!userData) {
-      return res.status(404).json({
+      // // 3️⃣ Fetch order counts
+      // const [
+      //   totalOrders,
+      //   completedOrders,
+      //   inProgressOrders,
+      //   confirmedOrders,
+      //   ordersWithTasks,
+      // ] = await Promise.all([
+      //   // 🔢 TOTAL ORDERS
+      //   Order.countDocuments({ userId }),
+
+      //   // ✅ COMPLETED ORDERS
+      //   Order.countDocuments({
+      //     userId,
+      //     paymentStatus: "Completed",
+      //   }),
+
+      //   // 🔄 IN PROGRESS
+      //   Order.countDocuments({
+      //     userId,
+      //     paymentStatus: "In Progress",
+      //   }),
+
+      //   // ⏳ CONFIRMED (Pending start)
+      //   Order.countDocuments({
+      //     userId,
+      //     paymentStatus: "Confirmed",
+      //   }),
+
+      //   // Fetch all orders for servicedays calculation
+      //   Order.find({ userId }),
+      // ]);
+
+      // // 4️⃣ Pending = Confirmed + InProgress
+      // const pendingOrders = confirmedOrders + inProgressOrders;
+
+      // // 5️⃣ Calculate servicedays based on completed tasks only
+      // let servicedays = 0;
+      // ordersWithTasks.forEach((order) => {
+      //   servicedays += order.tasks.filter((task) => task.is_done).length;
+      // });
+
+      // 6️⃣ Attach orders summary + servicedays to user
+      const userObj = userData.toObject();
+      // userObj.orders = {
+      //   total: totalOrders,
+      //   completed: completedOrders,
+      //   inProgress: inProgressOrders,
+      //   pending: pendingOrders,
+      // };
+      // userObj.servicedays = servicedays;
+
+      // 7️⃣ Send response
+      return res.status(200).json({
+        success: true,
+        User: userObj,
+      });
+    } catch (error) {
+      console.error("userGetById error:", error);
+      return res.status(500).json({
         success: false,
-        error: "User not found",
+        error: "Server error",
       });
     }
-
-    // 2️⃣ Check verification
-    if (!userData.verified) {
-      return res.status(401).json({
-        success: false,
-        message: "Account not Verified",
-      });
-    }
-
-    // 3️⃣ Fetch order counts
-    const [
-      totalOrders,
-      completedOrders,
-      inProgressOrders,
-      confirmedOrders,
-      ordersWithTasks,
-    ] = await Promise.all([
-      // 🔢 TOTAL ORDERS
-      Order.countDocuments({ userId }),
-
-      // ✅ COMPLETED ORDERS
-      Order.countDocuments({
-        userId,
-        paymentStatus: "Completed",
-      }),
-
-      // 🔄 IN PROGRESS
-      Order.countDocuments({
-        userId,
-        paymentStatus: "In Progress",
-      }),
-
-      // ⏳ CONFIRMED (Pending start)
-      Order.countDocuments({
-        userId,
-        paymentStatus: "Confirmed",
-      }),
-
-      // Fetch all orders for servicedays calculation
-      Order.find({ userId }),
-    ]);
-
-    // 4️⃣ Pending = Confirmed + InProgress
-    const pendingOrders = confirmedOrders + inProgressOrders;
-
-    // 5️⃣ Calculate servicedays based on completed tasks only
-    let servicedays = 0;
-    ordersWithTasks.forEach((order) => {
-      servicedays += order.tasks.filter((task) => task.is_done).length;
-    });
-
-    // 6️⃣ Attach orders summary + servicedays to user
-    const userObj = userData.toObject();
-    userObj.orders = {
-      total: totalOrders,
-      completed: completedOrders,
-      inProgress: inProgressOrders,
-      pending: pendingOrders,
-    };
-    userObj.servicedays = servicedays;
-
-    // 7️⃣ Send response
-    return res.status(200).json({
-      success: true,
-      User: userObj,
-    });
-  } catch (error) {
-    console.error("userGetById error:", error);
-    return res.status(500).json({
-      success: false,
-      error: "Server error",
-    });
-  }
-},
+  },
 
 
   updateAdmin: async (req, res) => {
@@ -930,6 +929,171 @@ userGetById: async (req, res) => {
     } catch (error) {
       console.error(error);
       res.status(500).json({ success: false, error: "Server error" });
+    }
+  },
+  createEmployee: async (req, res) => {
+    try {
+      const data = req.body;
+
+      // ✅ Check existing email
+      const existingEmail = await User.findOne({ email: data.email });
+      if (existingEmail) {
+        return res.status(400).json({ success: false, message: "Email already exists" });
+      }
+
+      // ✅ Hash password
+      const hashedPassword = await bcrypt.hash(data.password, 10);
+
+      const employeeData = {
+        firstname: data.firstname,
+        lastname: data.lastname,
+        email: data.email,
+        mobilenumber: data.mobilenumber,
+        password: hashedPassword,
+        UserType: "2",
+
+        employee: {
+          role: data.role || "",
+          salary: data.salary || 0,
+          joining_date: data.joining_date || new Date(),
+        },
+
+        vehicle: {
+          vehicle_type: data.vehicle_type || "",
+          vehicle_number: data.vehicle_number || "",
+          vehicle_name: data.vehicle_name || "",
+        },
+
+        documents: {
+          driving_license: req.files?.driving_license?.[0]?.filename || "",
+          aadhar_card: req.files?.aadhar_card?.[0]?.filename || "",
+          vehicle_rc: req.files?.vehicle_rc?.[0]?.filename || "",
+        },
+
+        bank_details: {
+          bank_name: data.bank_name || "",
+          account_number: data.account_number || "",
+          ifsc_code: data.ifsc_code || "",
+        },
+
+        location: {
+          address: data.address || "",
+          city: data.city || "",
+          state: data.state || "",
+        },
+      };
+
+      const user = await User.create(employeeData);
+
+      res.status(201).json({ success: true, data: user });
+
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ success: false, error: err.message });
+    }
+  }
+  ,
+  updateEmployee: async (req, res) => {
+    try {
+      const data = req.body;
+
+      const updateData = {
+        firstname: data.firstname,
+        lastname: data.lastname,
+        mobilenumber: data.mobilenumber,
+
+        "employee.role": data.role,
+        "employee.salary": data.salary,
+
+        "vehicle.vehicle_type": data.vehicle_type,
+        "vehicle.vehicle_number": data.vehicle_number,
+        "vehicle.vehicle_name": data.vehicle_name,
+
+        "bank_details.bank_name": data.bank_name,
+        "bank_details.account_number": data.account_number,
+        "bank_details.ifsc_code": data.ifsc_code,
+
+        "location.address": data.address,
+        "location.city": data.city,
+        "location.state": data.state,
+      };
+
+      // ✅ File updates
+      if (req.files?.driving_license) {
+        updateData["documents.driving_license"] = req.files.driving_license[0].filename;
+      }
+      if (req.files?.aadhar_card) {
+        updateData["documents.aadhar_card"] = req.files.aadhar_card[0].filename;
+      }
+      if (req.files?.vehicle_rc) {
+        updateData["documents.vehicle_rc"] = req.files.vehicle_rc[0].filename;
+      }
+
+      const user = await User.findByIdAndUpdate(
+        req.params.id,
+        { $set: updateData },
+        { new: true }
+      );
+
+      res.json({ success: true, data: user });
+
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ success: false, error: err.message });
+    }
+  },
+  listEmployees: async (req, res) => {
+    try {
+      const users = await User.find({ UserType: "2" })
+        .select("-password")
+        .sort({ created_at: -1 });
+
+      res.json({ success: true, users });
+
+    } catch (err) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  },
+  getEmployeeById: async (req, res) => {
+    try {
+      const user = await User.findById(req.params.id).select("-password");
+
+      if (!user) {
+        return res.status(404).json({ success: false, message: "Employee not found" });
+      }
+
+      res.json({ success: true, user });
+
+    } catch (err) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  },
+
+  getEmployeeById: async (req, res) => {
+    try {
+      const user = await User.findById(req.params.id).select("-password");
+
+      if (!user) {
+        return res.status(404).json({ success: false, message: "Employee not found" });
+      }
+
+      res.json({ success: true, user });
+
+    } catch (err) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  }, deleteEmployee: async (req, res) => {
+    try {
+      const user = await User.findByIdAndDelete(req.params.id);
+
+      if (!user) {
+        return res.status(404).json({ success: false, message: "Employee not found" });
+      }
+
+      res.json({ success: true, message: "Employee deleted successfully" });
+
+    } catch (err) {
+      res.status(500).json({ success: false, error: err.message });
     }
   },
 

@@ -64,4 +64,33 @@ router.post("/UserImage/:id",uploadHandler,UserController.userImageGetById);
 router.post("/verify-email-otp", UserController.verifyEmailOTP);
 
 
+// Create Employee
+router.post(
+  "/employee/create",
+  uploadHandler, // for file upload
+  [
+    body("email").isEmail().withMessage("Invalid email"),
+    body("mobilenumber").notEmpty().withMessage("Mobile required"),
+    body("firstname").notEmpty().withMessage("First name required"),
+  ],
+  UserController.createEmployee
+);
+
+// Update Employee
+router.put(
+  "/employee/update/:id",
+  uploadHandler,
+  UserController.updateEmployee
+);
+
+// Get All Employees
+router.get("/employee/list", UserController.listEmployees);
+
+// Get Employee By ID
+router.get("/employee/:id", UserController.getEmployeeById);
+
+// Delete Employee
+router.delete("/employee/:id", UserController.deleteEmployee);
+
+
 module.exports = router;

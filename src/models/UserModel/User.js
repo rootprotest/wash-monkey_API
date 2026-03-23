@@ -2,6 +2,7 @@ const mongoose = require("mongoose");
 const jwt = require("jsonwebtoken");
 
 const userSchema = new mongoose.Schema({
+  // 🔹 EXISTING FIELDS (KEEP ALL)
   firstname: { type: String, required: true },
   lastname: { type: String, default: "" },
   UserType: { type: String, default: "" },
@@ -13,67 +14,100 @@ const userSchema = new mongoose.Schema({
   profile_img: { type: String, default: "" },
   OTPNumber: { type: Number },
   loyalty_point: { type: Number, default: 0 },
-  verified: { type: Boolean, required: true, default: true },
-  resetToken: { type: String, default: "" },
-  resetTokenExpiration: { type: String, default: "" },
-  otp_verified: { type: String, default: "" },
-  image: { type: String, default: "" },
-  profile_background: { type: String, default: "" },
-  service_city: { type: String, default: "" },
-  service_area: { type: String, default: "" },
-  seller_type: { type: String, default: "" },
-  user_status: { type: String, default: "" },
-  terms_condition: { type: String, default: "" },
-  address: { type: String, default: "" },
-  state: { type: String, default: "" },
-  about: { type: String, default: "" },
-  tax_number: { type: String, default: "" },
-  business_registration: { type: String, default: "" },
-  post_code: { type: String, default: "" },
-  country_id: { type: String, default: "" },
-  email_verified: { type: String, default: "" },
-  email_verify_token: { type: String, default: "" },
-  remember_token: { type: String, default: "" },
-  facebook_id: { type: String, default: "" },
-  apple_id: { type: String, default: "" },
-  google_id: { type: String, default: "" },
-  country_code: { type: String, default: "" },
-  created_at: { type: Date },
-  updated_at: { type: Date },
-  password_changed_at: { type: Date },
-  fb_url: { type: String, default: "" },
-  tw_url: { type: String, default: "" },
-  go_url: { type: String, default: "" },
-  li_url: { type: String, default: "" },
-  yo_url: { type: String, default: "" },
-  in_url: { type: String, default: "" },
-  twi_url: { type: String, default: "" },
-  pi_url: { type: String, default: "" },
-  dr_url: { type: String, default: "" },
-  re_url: { type: String, default: "" },
-  web: { type: String, default: "" },
-  bank_name: { type: String, default: "" },
-  account_holder_name: { type: String, default: "" },
-  account_number: { type: String, default: "" },
-  ifsc_code: { type: String, default: "" },
-  swift: { type: String, default: "" },
+  verified: { type: Boolean, default: true },
+
+  // 🔹 OLD DOCUMENT FIELDS (KEEP)
   aadhar_copy: { type: String, default: "" },
   pan_card_copy: { type: String, default: "" },
   gst_certificate: { type: String, default: "" },
   driving_license: { type: String, default: "" },
-  last_seen: { type: Date },
-  otp_expire_at: { type: Date },
-  zone_id: { type: String, default: "" },
+
+  // 🔹 BANK (OLD)
+  bank_name: { type: String, default: "" },
+  account_holder_name: { type: String, default: "" },
+  account_number: { type: String, default: "" },
+  ifsc_code: { type: String, default: "" },
+
+  // 🔹 LOCATION (OLD)
+  address: { type: String, default: "" },
+  state: { type: String, default: "" },
   latitude: { type: String, default: "" },
   longitude: { type: String, default: "" },
-  seller_address: { type: String, default: "" },
+
+  // =====================================================
+  // ✅ NEW STRUCTURED DATA (FOR EMPLOYEE SYSTEM)
+  // =====================================================
+
+  // 👤 PROFILE
+  profile: {
+    gender: { type: String, default: "" },
+    dob: { type: Date },
+    profile_img: { type: String, default: "" },
+  },
+
+  // 💼 EMPLOYEE DETAILS
+  employee: {
+    employee_id: { type: String, default: "" },
+    role: { type: String, default: "" }, // Driver, Staff
+    joining_date: { type: Date },
+    salary: { type: Number },
+    shift: { type: String },
+    status: { type: String, default: "active" },
+  },
+
+  // 🚗 VEHICLE DETAILS
+  vehicle: {
+    vehicle_type: { type: String, default: "" },
+    vehicle_name: { type: String, default: "" },
+    vehicle_number: { type: String, default: "" },
+    vehicle_model: { type: String, default: "" },
+    vehicle_color: { type: String, default: "" },
+  },
+
+  // 📄 DOCUMENTS (NEW STRUCTURE)
+  documents: {
+    driving_license: { type: String, default: "" },
+    aadhar_card: { type: String, default: "" },
+    pan_card: { type: String, default: "" },
+    vehicle_rc: { type: String, default: "" },
+    insurance: { type: String, default: "" },
+  },
+
+  // 💳 BANK (NEW STRUCTURE)
+  bank_details: {
+    bank_name: String,
+    account_holder_name: String,
+    account_number: String,
+    ifsc_code: String,
+  },
+
+  // 📍 LOCATION (NEW STRUCTURE)
+  location: {
+    address: String,
+    city: String,
+    state: String,
+    pincode: String,
+    latitude: String,
+    longitude: String,
+  },
+
+  // 📊 ACTIVITY
+  activity: {
+    last_seen: { type: Date },
+    is_online: { type: Boolean, default: false },
+  },
+
+  // 🔹 OTHER EXISTING FIELDS (KEEP)
+  created_at: { type: Date },
+  updated_at: { type: Date },
+  password_changed_at: { type: Date },
+
   mainAddress: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "Address",
     default: null,
   },
 });
-
 // Method to generate token
 userSchema.methods.generateVerificationToken = function () {
   const user = this;
