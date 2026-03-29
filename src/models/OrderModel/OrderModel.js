@@ -140,7 +140,8 @@ const OrderSchema = new mongoose.Schema({
       "Cancelled by Technician",
       "Rescheduled",
       "No Show",
-      "Awaiting Review"
+      "Awaiting Review",
+      "Customer Not Available"
     ],
     default: "Pending",
   },
@@ -330,25 +331,28 @@ OrderSchema.statics.updateOverdueTasks = async function () {
 
 
     // Tasks scheduled today
-    await this.updateMany(
-      {},
+ await this.updateMany(
+  {
+    "tasks.assign_date": { $gte: today, $lt: tomorrow },
+    paymentStatus: { $ne: "Completed" }
+  },
+  {
+    $set: {
+      "tasks.$[elem].status": "Our service person will be assigned to you today",
+      "tasks.$[elem].task_assign_person": "Our service person will be assigned to you today",
+      paymentStatus: "Confirmed"
+    }
+  },
+  {
+    arrayFilters: [
       {
-        $set: {
-          "tasks.$[elem].status": "Our service person will be assigned to you today",
-          "tasks.$[elem].task_assign_person": "Our service person will be assigned to you today"
-        }
-      },
-      {
-        arrayFilters: [
-          {
-            "elem.assign_date": { $gte: today, $lt: tomorrow },
-            "elem.is_done": false,
-            "elem.time_complete": null
-          }
-        ]
+        "elem.assign_date": { $gte: today, $lt: tomorrow },
+        "elem.is_done": false,
+        "elem.time_complete": null
       }
-    );
-
+    ]
+  }
+);
 
 
     // Overdue tasks

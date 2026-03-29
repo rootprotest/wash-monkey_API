@@ -31,6 +31,7 @@ const CONFIRM_STATUSES = [
   "Scheduled",
   "Rescheduled",
   "Pending",
+  "Customer Not Available",
 ];
 
 const ACCEPT_STATUSES = [
@@ -795,7 +796,8 @@ exports.getAllTaskListForTodays = async (req, res) => {
       // STATUS FILTER
       if (status === "new" && order.paymentStatus !== "Confirmed") return null;
       if (status === "progress" && !["Accepted","Arrived","In Progress"].includes(order.paymentStatus)) return null;
-      if (status === "completed" && order.paymentStatus !== "Completed") return null;
+      if (status === "completed" && !["Customer Not Available","Completed"].includes(order.paymentStatus))  return null;
+      
 
       const address = await Address.findById(order.addressId);
       const user = await User.findById(order.userId);
@@ -803,6 +805,11 @@ exports.getAllTaskListForTodays = async (req, res) => {
       const products = await Promise.all(
         order.productIds.map((id) => Product.findById(id))
       );
+
+      let vehicle = null;
+if (order.vehicleId) {
+  vehicle = await Vehicle.findById(order.vehicleId);
+}
 
       let distanceInKm = null;
       let googleMapUrl = null;
@@ -823,6 +830,7 @@ exports.getAllTaskListForTodays = async (req, res) => {
         address,
         user,
         products,
+        vehicle, // ✅ ADD THIS
         todayTasks,
         distanceInKm,
         googleMapUrl,
@@ -993,6 +1001,25 @@ exports.updateOrderById = async (req, res) => {
     // 2️⃣ Save old status BEFORE update
     const oldStatus = existingOrder.paymentStatus;
 
+    // 🚫 ===============================
+    // BLOCK MULTIPLE ACTIVE ORDERS
+    // ===============================
+    if (status === "Accepted" && userId) {
+      const activeOrder = await Order.findOne({
+        _id: { $ne: orderId }, // exclude current order
+        "tasks.assign_id": userId,
+        paymentStatus: { $in: ["Accepted", "Arrived", "In Progress"] }
+      });
+
+      if (activeOrder) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "You already have an active order. Complete it before accepting a new one.",
+        });
+      }
+    }
+
     // 3️⃣ Update order status
     if (status) {
       existingOrder.paymentStatus = status;
@@ -1001,154 +1028,118 @@ exports.updateOrderById = async (req, res) => {
     let updatedTask = null;
 
     // 4️⃣ Update task if provided
-  if (task_id && task_assign_person) {
-  const taskIndex = existingOrder.tasks.findIndex(
-    (task) => task.task_id === task_id
-  );
+    if (task_id && task_assign_person) {
+      const taskIndex = existingOrder.tasks.findIndex(
+        (task) => task.task_id === task_id
+      );
 
-  if (taskIndex === -1) {
-    return res.status(404).json({
-      success: false,
-      message: "Task not found with the given ID",
-    });
-  }
+      if (taskIndex === -1) {
+        return res.status(404).json({
+          success: false,
+          message: "Task not found with the given ID",
+        });
+      }
 
-  // Update task fields
-  existingOrder.tasks[taskIndex].is_done = true;
-  existingOrder.tasks[taskIndex].time_complete = new Date();
-  existingOrder.tasks[taskIndex].assign_id = userId;
-  existingOrder.tasks[taskIndex].status = status;
-  existingOrder.tasks[taskIndex].task_assign_person = task_assign_person;
+      // Update task fields
+      existingOrder.tasks[taskIndex].is_done = true;
+      existingOrder.tasks[taskIndex].time_complete = new Date();
+      existingOrder.tasks[taskIndex].assign_id = userId;
+      existingOrder.tasks[taskIndex].status = status;
+      existingOrder.tasks[taskIndex].task_assign_person = task_assign_person;
 
-  // MARK AS MODIFIED
-  existingOrder.markModified("tasks");
+      existingOrder.markModified("tasks");
 
-  updatedTask = existingOrder.tasks[taskIndex];
-}
+      updatedTask = existingOrder.tasks[taskIndex];
+    }
 
-   console.log(existingOrder,'existingOrder');
-   
+    console.log(existingOrder, "existingOrder");
+
     // 5️⃣ Save order
     const updatedOrder = await existingOrder.save();
 
     /* ===========================
        📩 SEND STATUS-BASED SMS
-       =========================== */
-   /* ===========================
-   📩 SEND STATUS-BASED SMS
-   =========================== */try {
-  if (status && status !== oldStatus) {
-    const user = await User.findById(updatedOrder.userId);
+    =========================== */
+    try {
+      if (status && status !== oldStatus) {
+        const user = await User.findById(updatedOrder.userId);
 
-    if (!user || !user.mobilenumber) return;
+        if (!user || !user.mobilenumber) return;
 
-    const customerName = user.firstname || user.name || "Customer";
+        const customerName = user.firstname || user.name || "Customer";
 
-    // ✅ CONFIRMED / SCHEDULED
-    if (CONFIRM_STATUSES.includes(status)) {
-      await sendOrderConfirmSMS(
-        user.mobilenumber,
-        customerName,
-        status,
-        updatedOrder.bookingTime
-      );
+        if (CONFIRM_STATUSES.includes(status)) {
+          await sendOrderConfirmSMS(
+            user.mobilenumber,
+            customerName,
+            status,
+            updatedOrder.bookingTime
+          );
+        }
+
+        else if (COMPLETED_STATUSES.includes(status)) {
+          await sendOrderCompletedSMS(
+            user.mobilenumber,
+            customerName,
+            updatedOrder._id,
+            status
+          );
+        }
+
+        else if (PAYMENT_FAILED_STATUSES.includes(status)) {
+          await sendPaymentFailedSMS(
+            user.mobilenumber,
+            customerName,
+            updatedOrder.totalAmount,
+            status
+          );
+        }
+
+        else if (CANCELLED_STATUSES.includes(status)) {
+          await sendOrderCancelledSMS(
+            user.mobilenumber,
+            customerName,
+            updatedOrder._id,
+            status
+          );
+        }
+
+        else if (REFUND_STATUSES.includes(status)) {
+          await sendRefundSMS(
+            user.mobilenumber,
+            customerName,
+            status,
+            updatedOrder.totalAmount
+          );
+        }
+      }
+    } catch (smsError) {
+      console.error("SMS sending failed:", smsError.message);
     }
-
-    // ✅ ACCEPTED / TECHNICIAN ASSIGNED
-    else if (ACCEPT_STATUSES.includes(status)) {
-      await sendOrderAcceptedSMS(
-        user.mobilenumber,
-        customerName,
-        status,
-        updatedOrder.bookingTime
-      );
-    }
-
-   // 🚗 EN ROUTE / ARRIVED
-else if (ENROUTE_STATUSES.includes(status)) {
-  await sendEnRouteSMS(
-    user.mobilenumber,
-    customerName,
-    updatedOrder._id,
-    status
-  );
-}
-
-// 🔧 IN PROGRESS
-else if (INPROGRESS_STATUSES.includes(status)) {
-  await sendInProgressSMS(
-    user.mobilenumber,
-    customerName,
-    status,
-    updatedOrder.totalAmount,
-
-  );
-}
-
-
-    // ✅ COMPLETED
-    else if (COMPLETED_STATUSES.includes(status)) {
-      await sendOrderCompletedSMS(
-        user.mobilenumber,
-        customerName,
-        updatedOrder._id,
-        status
-      );
-    }
-
-    // ❌ PAYMENT FAILED
-    else if (PAYMENT_FAILED_STATUSES.includes(status)) {
-      await sendPaymentFailedSMS(
-        user.mobilenumber,
-        customerName,
-        updatedOrder.totalAmount,
-        status
-      );
-    }
-
-  // ❌ CANCELLED
-else if (CANCELLED_STATUSES.includes(status)) {
-  await sendOrderCancelledSMS(
-    user.mobilenumber,
-    customerName,
-    updatedOrder._id,
-    status // Cancelled by User / Technician / No Show
-  );
-}
-
-// 💸 REFUND
-else if (REFUND_STATUSES.includes(status)) {
-  await sendRefundSMS(
-    user.mobilenumber,
-    customerName,
-    status,
-    updatedOrder.totalAmount
-  );
-}
-
-  }
-} catch (smsError) {
-  console.error("SMS sending failed:", smsError.message);
-}
 
     /* ===========================
        🧾 ACTIVITY LOG
-       =========================== */
-    if (userId && updatedTask && (status === "Accepted" || status === "Completed")) {
+    =========================== */
+    if (
+      userId &&
+      updatedTask &&
+      (status === "Accepted" || status === "Completed")
+    ) {
       try {
         const date = require("moment")().format("YYYY-MM-DD");
         const log = await ActivityLog.findOne({ userId, date });
 
         if (log) {
           const existingTask = log.tasks.find(
-            task => task.taskId === updatedTask.task_id
+            (task) => task.taskId === updatedTask.task_id
           );
 
           if (existingTask) {
             existingTask.title =
               taskTitle || `${status} Task ${updatedTask.task_id}`;
             existingTask.description =
-              taskDescription || `Task ${status.toLowerCase()} in Order ${orderId}`;
+              taskDescription ||
+              `Task ${status.toLowerCase()} in Order ${orderId}`;
             existingTask.status = status;
             existingTask.assignedAt = new Date();
 
@@ -1158,12 +1149,16 @@ else if (REFUND_STATUSES.includes(status)) {
           } else {
             log.tasks.push({
               taskId: updatedTask.task_id,
-              title: taskTitle || `${status} Task ${updatedTask.task_id}`,
+              title:
+                taskTitle || `${status} Task ${updatedTask.task_id}`,
               description:
-                taskDescription || `Task ${status.toLowerCase()} in Order ${orderId}`,
+                taskDescription ||
+                `Task ${status.toLowerCase()} in Order ${orderId}`,
               status,
               assignedAt: new Date(),
-              ...(status === "Completed" && { completedAt: new Date() }),
+              ...(status === "Completed" && {
+                completedAt: new Date(),
+              }),
             });
           }
 
