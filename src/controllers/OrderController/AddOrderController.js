@@ -1010,7 +1010,7 @@ exports.updateOrderById = async (req, res) => {
         "tasks.assign_id": userId,
         paymentStatus: { $in: ["Accepted", "Arrived", "In Progress"] }
       });
-
+       console.log(activeOrder)
       if (activeOrder) {
         return res.status(400).json({
           success: false,

@@ -319,45 +319,47 @@ UPDATE OVERDUE TASKS
 ----------------------------------------------------- */
 
 OrderSchema.statics.updateOverdueTasks = async function () {
-
   try {
-
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
     const tomorrow = new Date(today);
     tomorrow.setDate(today.getDate() + 1);
 
-
-
-    // Tasks scheduled today
- await this.updateMany(
-  {
-    "tasks.assign_date": { $gte: today, $lt: tomorrow },
-    paymentStatus: { $ne: "Completed" }
-  },
-  {
-    $set: {
-      "tasks.$[elem].status": "Our service person will be assigned to you today",
-      "tasks.$[elem].task_assign_person": "Our service person will be assigned to you today",
-      paymentStatus: "Confirmed"
-    }
-  },
-  {
-    arrayFilters: [
-      {
-        "elem.assign_date": { $gte: today, $lt: tomorrow },
-        "elem.is_done": false,
-        "elem.time_complete": null
-      }
-    ]
-  }
-);
-
-
-    // Overdue tasks
+    /* ======================================================
+       1️⃣ TODAY TASKS → SET CONFIRMED (IF NOT DONE)
+    ====================================================== */
     await this.updateMany(
-      {},
+      {
+        "tasks.assign_date": { $gte: today, $lt: tomorrow },
+        paymentStatus: { $ne: "Completed" }
+      },
+      {
+        $set: {
+          "tasks.$[elem].status": "Our service person will be assigned to you today",
+          "tasks.$[elem].task_assign_person": "Our service person will be assigned to you today",
+          paymentStatus: "Confirmed"
+        }
+      },
+      {
+        arrayFilters: [
+          {
+            "elem.assign_date": { $gte: today, $lt: tomorrow },
+            "elem.is_done": false,
+            "elem.time_complete": null
+          }
+        ]
+      }
+    );
+
+    /* ======================================================
+       2️⃣ OVERDUE TASKS → MARK AS NOT DONE
+    ====================================================== */
+    await this.updateMany(
+      {
+        "tasks.assign_date": { $lt: today },
+        paymentStatus: { $ne: "Completed" }
+      },
       {
         $set: {
           "tasks.$[elem].status": "Service not done",
@@ -375,18 +377,53 @@ OrderSchema.statics.updateOverdueTasks = async function () {
       }
     );
 
+    /* ======================================================
+       3️⃣ 🔥 FIX: RESET WRONG COMPLETED (FUTURE TASK EXISTS)
+    ====================================================== */
+    await this.updateMany(
+      {
+        paymentStatus: "Completed",
+        tasks: {
+          $elemMatch: {
+            is_done: false,
+            time_complete: null,
+            assign_date: { $gte: today } // today + future
+          }
+        }
+      },
+      {
+        $set: {
+          paymentStatus: "Confirmed"
+        }
+      }
+    );
 
+    /* ======================================================
+       4️⃣ ✅ MARK COMPLETED ONLY IF ALL TASKS DONE
+    ====================================================== */
+    await this.updateMany(
+      {
+        tasks: {
+          $not: {
+            $elemMatch: {
+              is_done: false
+            }
+          }
+        }
+      },
+      {
+        $set: {
+          paymentStatus: "Completed"
+        }
+      }
+    );
 
-    console.log("Overdue tasks updated successfully");
+    console.log("✅ Task status & order status updated successfully");
 
   } catch (error) {
-
-    console.error("Error updating tasks:", error);
-
+    console.error("❌ Error updating tasks:", error);
   }
-
 };
-
 
 
 /* -----------------------------------------------------
