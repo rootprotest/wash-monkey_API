@@ -32,6 +32,9 @@ const CONFIRM_STATUSES = [
   "Rescheduled",
   "Pending",
   "Customer Not Available",
+   "Accepted",
+   "In Progress",
+   "Arrived",
 ];
 
 const ACCEPT_STATUSES = [
@@ -254,122 +257,228 @@ const onChangeTrackOrder = async (trackId) => {
     throw error; // Throw the error to be handled by the calling function
   }
 };
-const onCreateOrder = async (addressId, codType, newOrderList) => {
-  try {
-    const address = await getAddressById(addressId);
 
-    if (!address) {
-      throw new Error('Address not found');
-    }
 
-    const serviceabilityData = await checkServiceability('560102', address.pinCode, codType);
 
-    if (Object.keys(serviceabilityData).length === 0) {
-      throw new Error('Service not available');
-    }
 
-    const productPromises = newOrderList.quantity.map(async (productIds) => {
-      const product = await Product.findById(productIds.productId);
-      return {
-        "name": product.name,
-        "sku": product.sku,
-        "units": productIds.quantity,
-        "selling_price": product.amount,
-        "discount": product.offeramount,
-        "tax": "",
-        "hsn": 441122
-      };
-    });
 
-    const payload = await createOrderPayload(address, newOrderList, productPromises);
-    const orderResponse = await placeOrder(payload);
-    return orderResponse
-    console.log(orderResponse);
-  } catch (error) {
-    console.error(`Error creating order: ${error}`);
-  }
-};
 
-const sendPaymentFailedSMS = async (
+const sendOrderCompletedWhatsApp = async (
   mobileNumber,
   customerName,
-  amount,
+  order
+) => {
+  try {
+    const dateObj = new Date(order.updatedAt || order.createdAt);
+
+    const serviceDate = dateObj.toLocaleDateString("en-GB"); 
+    // 14/03/2026
+
+    const paramString = `${customerName},${order._id},${serviceDate}`;
+
+    const url =
+      `https://login.tendigit.in/api/sendtemplate.php` +
+      `?LicenseNumber=99861082753` +
+      `&APIKey=dKkGuClJB9VLgSNWeQhH7Fzs6` +
+      `&Contact=91${mobileNumber}` +
+      `&Template=task_completed` +
+      `&Param=${paramString}`;
+
+    console.log("Completed URL:", url);
+
+    const res = await axios.get(url);
+
+    console.log("Completed WA Sent:", res.data);
+    return res.data;
+
+  } catch (err) {
+    console.error("Completed WA Error:", err.response?.data || err.message);
+  }
+};
+const sendPaymentFailedWhatsApp = async (
+  mobileNumber,
+  customerName,
   orderId
 ) => {
-  const message =
-    `Dear ${customerName}, payment of Rs.${amount} for Car Wash Service ` +
-    `request ${orderId} failed. Please retry or use another method. ` +
-    `Visit https://washmonkey.in - WASHIMONKI`;
-
-  const url =
-    `${SMS_API_URL}` +
-    `?apikey=${SMS_API_KEY}` +
-    `&senderid=${SMS_SENDER_ID}` +
-    `&number=${mobileNumber}` +
-    `&message=${encodeURIComponent(message)}`;
-
   try {
-    const response = await axios.get(url);
-    console.log("Payment Failed SMS Sent:", response.data);
-    return response.data;
-  } catch (error) {
-    console.error("Payment Failed SMS Error:", error.message);
+    const paramString = `${customerName},${orderId}`;
+
+    const url =
+      `https://login.tendigit.in/api/sendtemplate.php` +
+      `?LicenseNumber=99861082753` +
+      `&APIKey=dKkGuClJB9VLgSNWeQhH7Fzs6` +
+      `&Contact=${mobileNumber}` +
+      `&Template=payment_failed` +
+      `&Param=${paramString}`;
+
+    const res = await axios.get(url);
+
+    console.log("Payment Failed WA:", res.data);
+    return res.data;
+
+  } catch (err) {
+    console.error("Payment Failed WA Error:", err.message);
   }
 };
 
-const sendOrderCompletedSMS = async (
+
+const sendServiceNotCompletedWhatsApp = async (
+  mobileNumber,
+  customerName,
+  order
+) => {
+  try {
+    const dateObj = new Date(order.createdAt);
+
+    const serviceDate = dateObj.toLocaleDateString("en-GB");
+
+    const paramString = `${customerName},${serviceDate}`;
+
+    const url =
+      `https://login.tendigit.in/api/sendtemplate.php` +
+      `?LicenseNumber=99861082753` +
+      `&APIKey=dKkGuClJB9VLgSNWeQhH7Fzs6` +
+      `&Contact=91${mobileNumber}` +
+      `&Template=service_not_completed` +
+      `&Param=${paramString}`;
+
+    const res = await axios.get(url);
+
+    console.log("Service Not Completed WA:", res.data);
+    return res.data;
+
+  } catch (err) {
+    console.error("Service WA Error:", err.message);
+  }
+};
+// const sendOrderAcceptedSMS = async (mobileNumber, customerName, orderId, bookingTime) => {
+//   const apiKey = "6FlAGamNys0B4OxZ";
+//   const senderId = "WASHMO";
+
+//  const message =
+//     `Hello ${customerName}, your Wash Monkey Service request ${orderId} ` +
+//     `is confirmed for ${bookingTime}. Will be at your location as scheduled. ` +
+//     `Visit https://washmonkey.in - WASHIMONKI`;
+
+//   const url =
+//     `http://app.mydreamstechnology.in/vb/apikey.php` +
+//     `?apikey=${apiKey}` +
+//     `&senderid=${senderId}` +
+//     `&number=${mobileNumber}` +
+//     `&message=${encodeURIComponent(message)}`;
+
+//   try {
+//     await axios.get(url);
+//     console.log("Order Accepted SMS sent");
+//   } catch (error) {
+//     console.error("Accepted SMS failed:", error.message);
+//   }
+// };
+
+
+const sendOrderConfirmWhatsApp = async (
   mobileNumber,
   customerName,
   orderId,
-  status
+  order // 👈 pass full order instead
 ) => {
-  const message =
-    `Hi ${customerName}, your Wash Monkey Service request ${status} ` +
-    `has been successfully completed. Thank you for choosing us. ` +
-    `- WASHIMONKI`;
-
-  const url =
-    `${SMS_API_URL}` +
-    `?apikey=${SMS_API_KEY}` +
-    `&senderid=${SMS_SENDER_ID}` +
-    `&number=${mobileNumber}` +
-    `&message=${encodeURIComponent(message)}`;
-
   try {
+    const licenseNumber = "99861082753";
+    const apiKey = "dKkGuClJB9VLgSNWeQhH7Fzs6";
+
+    // ✅ Get date from createdAt (or your date field)
+    const dateObj = new Date(order.createdAt);
+
+    const serviceDate = dateObj.toLocaleDateString("en-IN");
+
+    // ✅ Use bookingTime directly (slot)
+    const serviceTime = order.bookingTime.replace(/\s/g, ""); 
+    // "6:00AM–9:00AM"
+
+    const paramString = `${customerName},${orderId},${serviceDate},${serviceTime}`;
+
+    const url = `https://login.tendigit.in/api/sendtemplate.php` +
+      `?LicenseNumber=${licenseNumber}` +
+      `&APIKey=${apiKey}` +
+      `&Contact=91${mobileNumber}` +
+      `&Template=order_confirmation1` +
+      `&Param=${paramString}`;
+
+    console.log("FINAL URL:", url);
+
     const response = await axios.get(url);
-    console.log("Order Completed SMS Sent:", response.data);
+
+    console.log("WhatsApp Sent:", response.data);
     return response.data;
+
   } catch (error) {
-    console.error("Order Completed SMS Error:", error.message);
+    console.error("WhatsApp Error:", error.response?.data || error.message);
   }
 };
-
-
-const sendOrderAcceptedSMS = async (mobileNumber, customerName, orderId, bookingTime) => {
-  const apiKey = "6FlAGamNys0B4OxZ";
-  const senderId = "WASHMO";
-
- const message =
-    `Hello ${customerName}, your Wash Monkey Service request ${orderId} ` +
-    `is confirmed for ${bookingTime}. Will be at your location as scheduled. ` +
-    `Visit https://washmonkey.in - WASHIMONKI`;
-
-  const url =
-    `http://app.mydreamstechnology.in/vb/apikey.php` +
-    `?apikey=${apiKey}` +
-    `&senderid=${senderId}` +
-    `&number=${mobileNumber}` +
-    `&message=${encodeURIComponent(message)}`;
-
+const sendOrderStatusWhatsApp = async (
+  mobileNumber,
+  customerName,
+  orderId,
+  status,
+  order
+) => {
   try {
-    await axios.get(url);
-    console.log("Order Accepted SMS sent");
+    const licenseNumber = "99861082753";
+    const apiKey = "dKkGuClJB9VLgSNWeQhH7Fzs6";
+
+    let extraMessage = "";
+
+    const dateObj = new Date(order.createdAt);
+    const formattedDate = dateObj.toLocaleDateString("en-GB");
+
+    // ✅ Dynamic message
+    switch (status) {
+      case "Confirmed":
+      case "Accepted":
+        extraMessage = `Scheduled on ${formattedDate} at ${order.bookingTime}`;
+        break;
+
+      case "Completed":
+        extraMessage = `Completed on ${formattedDate}`;
+        break;
+
+      case "Payment Failed":
+        extraMessage = `Payment failed. Please retry.`;
+        break;
+
+      case "Cancelled":
+        extraMessage = `Your order has been cancelled.`;
+        break;
+
+      case "Refund":
+        extraMessage = `Refund will be processed shortly.`;
+        break;
+
+      default:
+        extraMessage = `Updated on ${formattedDate}`;
+    }
+
+    const paramString = `${customerName},${orderId},${status},${extraMessage}`;
+
+    const url =
+      `https://login.tendigit.in/api/sendtemplate.php` +
+      `?LicenseNumber=${licenseNumber}` +
+      `&APIKey=${apiKey}` +
+      `&Contact=${mobileNumber}` +
+      `&Template=order_message` +
+      `&Param=${paramString}`;
+
+    console.log("WA URL:", url);
+
+    const response = await axios.get(url);
+
+    console.log("WA Sent:", response.data);
+    return response.data;
+
   } catch (error) {
-    console.error("Accepted SMS failed:", error.message);
+    console.error("WA Error:", error.response?.data || error.message);
   }
 };
-
-
 const sendOrderConfirmSMS = async (mobileNumber, customerName, orderId, bookingTime) => {
   const apiKey = "6FlAGamNys0B4OxZ";
   const senderId = "WASHMO";
@@ -393,115 +502,9 @@ const sendOrderConfirmSMS = async (mobileNumber, customerName, orderId, bookingT
     console.error("Order SMS failed:", error.message);
   }
 };
-const sendOrderCancelledSMS = async (
-  mobileNumber,
-  customerName,
-  orderId,
-  reason
-) => {
 
 
-     const message =
-    `Hello ${customerName}, your Wash Monkey Service request ${reason} ` +
-    `is confirmed for ${reason ? ` (${reason})` : ""}. Will be at your location as scheduled. ` +
-    `Visit https://washmonkey.in - WASHIMONKI`;
 
-  const url =
-    `${SMS_API_URL}` +
-    `?apikey=${SMS_API_KEY}` +
-    `&senderid=${SMS_SENDER_ID}` +
-    `&number=${mobileNumber}` +
-    `&message=${encodeURIComponent(message)}`;
-
-  try {
-    const response = await axios.get(url);
-    console.log("Order Cancelled SMS Sent:", response.data);
-    return response.data;
-  } catch (error) {
-    console.error("Order Cancelled SMS Error:", error.message);
-  }
-};
-
-
-const sendRefundSMS = async (
-  mobileNumber,
-  customerName,
-  orderId,
-  amount
-) => {
-  const message =
-    `Dear ${customerName}, payment of Rs.${amount} for Car Wash Service ` +
-    `request ${orderId} failed. Please retry or use another method. ` +
-    `Visit https://washmonkey.in - WASHIMONKI`;
-
-  const url =
-    `${SMS_API_URL}` +
-    `?apikey=${SMS_API_KEY}` +
-    `&senderid=${SMS_SENDER_ID}` +
-    `&number=${mobileNumber}` +
-    `&message=${encodeURIComponent(message)}`;
-
-  try {
-    const response = await axios.get(url);
-    console.log("Refund SMS Sent:", response.data);
-    return response.data;
-  } catch (error) {
-    console.error("Refund SMS Error:", error.message);
-  }
-};
-
-const sendEnRouteSMS = async (
-  mobileNumber,
-  customerName,
-  orderId,
-  status
-) => {
-   const message =
-    `Hello ${customerName}, your Wash Monkey Service request ${status} ` +
-    `is confirmed for ${mobileNumber}. Will be at your location as scheduled. ` +
-    `Visit https://washmonkey.in - WASHIMONKI`;
-  const url =
-    `${SMS_API_URL}` +
-    `?apikey=${SMS_API_KEY}` +
-    `&senderid=${SMS_SENDER_ID}` +
-    `&number=${mobileNumber}` +
-    `&message=${encodeURIComponent(message)}`;
-
-  try {
-    const response = await axios.get(url);
-    console.log("En Route SMS Sent:", response.data);
-    return response.data;
-  } catch (error) {
-    console.error("En Route SMS Error:", error.message);
-  }
-};
-
-const sendInProgressSMS = async (
-  mobileNumber,
-  customerName,
-  orderId,
-  amount
-) => {
-   const message =
-    `Dear ${customerName}, payment of Rs.${amount} for Car Wash Service ` +
-    `request ${orderId} failed. Please retry or use another method. ` +
-    `Visit https://washmonkey.in - WASHIMONKI`;
-
-  const url =
-    `${SMS_API_URL}` +
-    `?apikey=${SMS_API_KEY}` +
-    `&senderid=${SMS_SENDER_ID}` +
-    `&number=${mobileNumber}` +
-    `&message=${encodeURIComponent(message)}`;
-
-  try {
-    const response = await axios.get(url);
-    console.log("In Progress SMS Sent:", response.data);
-    return response.data;
-  } catch (error) {
-    console.error("In Progress SMS Error:", error.message);
-  }
-};
 
 
 exports.createOrder = async (req, res) => {
@@ -555,6 +558,55 @@ exports.createOrder = async (req, res) => {
   }
 };
 
+
+exports.createOrderweb = async (req, res) => {
+  try {
+    const {
+      userId,
+      addressId,
+      productIds,
+      totalAmount,
+      delivery,
+      applycoupon,
+      // quantity,
+      tasks,
+      bookingTime,
+      walletamount,
+      interior,
+      vehicleId,
+      formwashcount
+    } = req.body;
+
+    const newOrder = await Order.create({
+      userId,
+      addressId,
+      productIds,
+      totalAmount,
+      delivery,
+      applycoupon,
+      // quantity,
+      tasks,
+      bookingTime,
+      walletamount,
+      interior,
+      vehicleId,
+      formwashcount,
+
+      // ✅ ALWAYS SET DEFAULT
+      paymentStatus: "Pending",
+      status: "Pending"
+    });
+
+    res.status(200).json({
+      success: true,
+      order: newOrder
+    });
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, error: "Server error" });
+  }
+};
 
 exports.getAllOrder = async (req, res) => {
   try {
@@ -772,7 +824,8 @@ const haversineDistance = (lat1, lon1, lat2, lon2) => {
 exports.getAllTaskListForTodays = async (req, res) => {
   try {
     const { latitude: userLat, longitude: userLng, assign_id, status } = req.body;
-
+  // 1️⃣ Fetch all orders
+      await Order.updateOverdueTasks();
     const todayStr = new Date().toDateString();
 
     const allOrders = await Order.find();
@@ -1004,21 +1057,37 @@ exports.updateOrderById = async (req, res) => {
     // 🚫 ===============================
     // BLOCK MULTIPLE ACTIVE ORDERS
     // ===============================
-    if (status === "Accepted" && userId) {
-      const activeOrder = await Order.findOne({
-        _id: { $ne: orderId }, // exclude current order
-        "tasks.assign_id": userId,
-        paymentStatus: { $in: ["Accepted", "Arrived", "In Progress"] }
-      });
-       console.log(activeOrder)
-      if (activeOrder) {
-        return res.status(400).json({
-          success: false,
-          message:
-            "You already have an active order. Complete it before accepting a new one.",
-        });
-      }
-    }
+if (status === "Accepted" && userId) {
+  // 🕒 Get today's start & end
+  const startOfDay = new Date();
+  startOfDay.setHours(0, 0, 0, 0);
+
+  const endOfDay = new Date();
+  endOfDay.setHours(23, 59, 59, 999);
+
+  const activeOrder = await Order.findOne({
+    _id: { $ne: orderId },
+    paymentStatus: { $in: ["Accepted", "Arrived", "In Progress"] },
+    tasks: {
+      $elemMatch: {
+        assign_id: userId,
+        assign_date: {
+          $gte: startOfDay,
+          $lte: endOfDay,
+        },
+      },
+    },
+  });
+
+  console.log("Today Active Order:", activeOrder);
+
+  if (activeOrder) {
+    return res.status(400).json({
+      success: false,
+      message: "You already have an active task for today.",
+    });
+  }
+}
 
     // 3️⃣ Update order status
     if (status) {
@@ -1068,50 +1137,16 @@ exports.updateOrderById = async (req, res) => {
 
         const customerName = user.firstname || user.name || "Customer";
 
-        if (CONFIRM_STATUSES.includes(status)) {
-          await sendOrderConfirmSMS(
-            user.mobilenumber,
-            customerName,
-            status,
-            updatedOrder.bookingTime
-          );
-        }
-
-        else if (COMPLETED_STATUSES.includes(status)) {
-          await sendOrderCompletedSMS(
-            user.mobilenumber,
-            customerName,
-            updatedOrder._id,
-            status
-          );
-        }
-
-        else if (PAYMENT_FAILED_STATUSES.includes(status)) {
-          await sendPaymentFailedSMS(
-            user.mobilenumber,
-            customerName,
-            updatedOrder.totalAmount,
-            status
-          );
-        }
-
-        else if (CANCELLED_STATUSES.includes(status)) {
-          await sendOrderCancelledSMS(
-            user.mobilenumber,
-            customerName,
-            updatedOrder._id,
-            status
-          );
-        }
-
-        else if (REFUND_STATUSES.includes(status)) {
-          await sendRefundSMS(
-            user.mobilenumber,
-            customerName,
-            status,
-            updatedOrder.totalAmount
-          );
-        }
+     if (status && status !== oldStatus) {
+  await sendOrderStatusWhatsApp(
+  user.mobilenumber,
+  customerName,
+  `ORD-${updatedOrder._id.toString().slice(-5).toUpperCase()}`, // 👈 formatted ID
+  status,
+  updatedOrder
+);
+}
+   
       }
     } catch (smsError) {
       console.error("SMS sending failed:", smsError.message);
@@ -1987,3 +2022,66 @@ exports.deleteTask = async (req, res) => {
     });
   }
 };
+
+// exports.verifyPaymentWeb = async (req, res) => {
+//   const { orderId } = req.body;
+
+//   try {
+//     const statusResponse = await juspay.order.status(orderId);
+//     const status = statusResponse.status;
+
+//     console.log("JUSPAY STATUS:", statusResponse);
+
+//     if (status === "CHARGED") {
+
+//       const order = await Order.findById(orderId).populate("userId");
+
+//       if (!order) {
+//         return res.json({ success: false, message: "Order not found" });
+//       }
+
+//       // ✅ Prevent duplicate update
+//       if (order.paymentStatus !== "Paid") {
+
+//         order.paymentStatus = "Paid";
+//         order.status = "Confirmed";
+
+//         await order.save();
+
+//         const user = order.userId;
+
+//         if (user) {
+//           const newPoints =
+//             Number(user.loyalty_point || 0) - Number(order.walletamount || 0);
+
+//           user.loyalty_point = Math.max(newPoints, 0);
+//           await user.save();
+
+//           await sendOrderConfirmSMS(
+//             user.mobilenumber,
+//             user.firstname || "Customer",
+//             order._id,
+//             "Confirmed",
+//             order.bookingTime
+//           );
+//         }
+//       }
+
+//       return res.json({
+//         success: true,
+//         status: "SUCCESS",
+//         order
+//       });
+//     }
+
+//     // ❌ Failed or pending
+//     return res.json({
+//       success: false,
+//       status
+//     });
+
+//   } catch (error) {
+//     console.error(error);
+//     res.status(500).json({ success: false });
+//   }
+// };

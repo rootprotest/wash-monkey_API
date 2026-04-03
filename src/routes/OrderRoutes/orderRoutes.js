@@ -5,9 +5,14 @@ const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
 const { Juspay, APIError } = require('expresscheckout-nodejs');
+const Order = require("../../models/OrderModel/OrderModel");
 
 // Create a new order with payment
 router.post('/createOrder', OrderController.createOrder);
+
+
+router.post('/createOrderweb', OrderController.createOrderweb);
+
 
 router.put('/orderUpdate/:id', OrderController.updateOrderById);
 
@@ -53,6 +58,7 @@ router.put("/ordernote/:id/note", OrderController.updateOrderNote);
 
 router.post("/task/create", OrderController.createOrderTask);
 
+// router.post('/verify-payment-web', OrderController.verifyPaymentWeb);
 router.delete(
   "/task/delete/:order_id/:task_id",
   OrderController.deleteTask
@@ -158,6 +164,46 @@ router.post('/hdfc/create-order', async (req, res) => {
   }
 });
 
+
+router.post('/hdfc/create-order-web', async (req, res) => {
+  const { order_id, amount, userId } = req.body;
+
+  // ❌ DO NOT auto-generate
+  if (!order_id) {
+    return res.status(400).json({ success: false, message: "order_id required" });
+  }
+
+  // ✅ FRONTEND SUCCESS PAGE
+  const returnUrl = `https://www.washmonkey.in/payment-success?orderId=${order_id}`;
+
+  try {
+    const sessionResponse = await juspay.orderSession.create({
+      order_id: order_id, // 🔥 DB ORDER ID
+      amount,
+      payment_page_client_id: paymentPageClientId,
+      customer_id: userId || 'guest_user',
+      action: 'paymentPage',
+      return_url: returnUrl,
+      currency: 'INR',
+    });
+
+    console.log("JUSPAY SESSION:", sessionResponse);
+
+    return res.json({
+      paymentUrl: makeJuspayResponse(sessionResponse),
+      orderId: order_id
+    });
+
+  } catch (error) {
+    console.error("JUSPAY ERROR:", error);
+
+    if (error instanceof APIError) {
+      return res.json(makeError(error.message));
+    }
+
+    return res.json(makeError());
+  }
+});
 // ===== ROUTE: Handle Juspay Response =====
 router.post('/payment-success', async (req, res) => {
   const orderId = req.body.order_id || req.body.orderId;
@@ -211,6 +257,31 @@ router.post('/payment-callback', async (req, res) => {
   }
 });
 
+const sendOrderConfirmSMS = async (mobileNumber, customerName, orderId, bookingTime) => {
+  const apiKey = "6FlAGamNys0B4OxZ";
+  const senderId = "WASHMO";
+
+  const message =
+    `Hello ${customerName}, your Wash Monkey Service request ${orderId} ` +
+    `is confirmed for ${bookingTime}. Will be at your location as scheduled. ` +
+    `Visit https://washmonkey.in - WASHIMONKI`;
+
+  const url = `http://app.mydreamstechnology.in/vb/apikey.php` +
+    `?apikey=${apiKey}` +
+    `&senderid=${senderId}` +
+    `&number=${mobileNumber}` +
+    `&message=${encodeURIComponent(message)}`;
+
+  try {
+    const response = await axios.get(url);
+    console.log("Order Confirm SMS Sent:", response.data);
+    return response.data;
+  } catch (error) {
+    console.error("Order SMS failed:", error.message);
+  }
+};
+
+
 /* ===========================
    3️⃣ VERIFY PAYMENT (API FOR APP)
 =========================== */
@@ -257,6 +328,83 @@ router.post('/verify-payment', async (req, res) => {
   } catch (error) {
     console.error('Verify error:', error);
     return res.status(500).json(makeError('Verification failed'));
+  }
+});
+router.post('/verify-payment-web', async (req, res) => {
+  const { orderId } = req.body;
+
+  try {
+    const statusResponse = await juspay.order.status(orderId);
+    const status = statusResponse.status;
+
+    console.log("JUSPAY STATUS:", statusResponse);
+
+    const order = await Order.findById(orderId).populate("userId");
+
+    if (!order) {
+      return res.json({ success: false, message: "Order not found" });
+    }
+
+    // ================= SUCCESS =================
+    if (status === "CHARGED") {
+
+      // ✅ Prevent duplicate update
+      if (order.paymentStatus !== "Confirmed") {
+
+        order.paymentStatus = "Confirmed";
+        order.status = "Confirmed";
+
+        await order.save();
+
+        const user = order.userId;
+
+        if (user) {
+          const newPoints =
+            Number(user.loyalty_point || 0) - Number(order.walletamount || 0);
+
+          user.loyalty_point = Math.max(newPoints, 0);
+          await user.save();
+
+          await sendOrderConfirmSMS(
+            user.mobilenumber,
+            user.firstname || "Customer",
+            order._id,
+            "Confirmed",
+            order.bookingTime
+          );
+        }
+      }
+
+      return res.json({
+        success: true,
+        status: "SUCCESS",
+        order
+      });
+    }
+
+    // ================= FAILED =================
+    if (status === "FAILED" || status === "CANCELLED") {
+
+      console.log("❌ Payment Failed → Removing Order:", orderId);
+
+      await Order.findByIdAndDelete(orderId);
+
+      return res.json({
+        success: false,
+        status,
+        message: "Order deleted due to failed payment"
+      });
+    }
+
+    // ================= PENDING =================
+    return res.json({
+      success: false,
+      status: "PENDING"
+    });
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false });
   }
 });
 
