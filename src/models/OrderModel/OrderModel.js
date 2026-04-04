@@ -81,7 +81,7 @@ const OrderSchema = new mongoose.Schema({
   productIds: [
     {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Product",
+      ref: "product",
       required: true
     }
   ],
@@ -90,7 +90,7 @@ const OrderSchema = new mongoose.Schema({
     {
       productId: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: "Product",
+        ref: "product",
         required: true
       },
       quantity: {
@@ -183,6 +183,9 @@ const OrderSchema = new mongoose.Schema({
     type: String,
     unique: true,
     sparse: true
+  },
+   orderDisplayId: {
+    type: String,
   },
 
   shipment_id: {

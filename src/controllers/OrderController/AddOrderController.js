@@ -455,7 +455,7 @@ const sendOrderStatusWhatsApp = async (
         break;
 
       default:
-        extraMessage = `Updated on ${formattedDate}`;
+        break;
     }
 
     const paramString = `${customerName},${orderId},${status},${extraMessage}`;
@@ -824,77 +824,121 @@ const haversineDistance = (lat1, lon1, lat2, lon2) => {
 exports.getAllTaskListForTodays = async (req, res) => {
   try {
     const { latitude: userLat, longitude: userLng, assign_id, status } = req.body;
-  // 1️⃣ Fetch all orders
-      await Order.updateOverdueTasks();
-    const todayStr = new Date().toDateString();
 
-    const allOrders = await Order.find();
+    await Order.updateOverdueTasks();
 
-    const taskOrderPromises = allOrders.map(async (order) => {
-      if (!Array.isArray(order.tasks)) return null;
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
 
-      const todayTasks = order.tasks.filter((task) => {
-        const assignDate = new Date(task.assign_date).toDateString();
-        const isToday = assignDate === todayStr;
+    const endOfToday = new Date();
+    endOfToday.setHours(23, 59, 59, 999);
 
-        if (assign_id) {
-          return isToday && task.assign_id?.toString() === assign_id;
-        }
+    // ✅ Fetch only required data
+    const orders = await Order.find({
+      "tasks.assign_date": {
+        $gte: startOfToday,
+        $lte: endOfToday
+      }
+    })
+      .populate("userId")
+      .populate("addressId")
+      .populate("productIds")
+      .lean();
 
-        return isToday;
-      });
+    const result = orders.map((order) => {
+      const todayTasks = order.tasks
+        .filter((task) => {
+          const assignDate = new Date(task.assign_date);
+          return assignDate >= startOfToday && assignDate <= endOfToday;
+        })
+        .map((task) => {
+          const isSamePerson =
+            assign_id && task.assign_id?.toString() === assign_id;
 
-      if (!todayTasks.length) return null;
+          let displayStatus = task.status;
 
-      // STATUS FILTER
-      if (status === "new" && order.paymentStatus !== "Confirmed") return null;
-      if (status === "progress" && !["Accepted","Arrived","In Progress"].includes(order.paymentStatus)) return null;
-      if (status === "completed" && !["Customer Not Available","Completed"].includes(order.paymentStatus))  return null;
-      
+          if (
+            !task.assign_id ||
+            (task.status && !isSamePerson) ||
+            !task.status
+          ) {
+            displayStatus = "Our service person will be assigned to you today";
+          }
 
-      const address = await Address.findById(order.addressId);
-      const user = await User.findById(order.userId);
+          return {
+            ...task,
+            displayStatus,
+          };
+        });
 
-      const products = await Promise.all(
-        order.productIds.map((id) => Product.findById(id))
-      );
+      let filteredTasks = todayTasks;
 
-      let vehicle = null;
-if (order.vehicleId) {
-  vehicle = await Vehicle.findById(order.vehicleId);
-}
+      if (status === "new") {
+        filteredTasks = todayTasks.filter((t) => {
+
+          return !t.assign_id && ["Our service person will be assigned to you today"].includes(t.status);
+        });
+      }
+
+      if (status === "progress") {
+        filteredTasks = todayTasks.filter((t) => {
+          const isSamePerson =
+            assign_id && t.assign_id?.toString() === assign_id;
+
+          return (
+            isSamePerson &&
+            ["Accepted", "Arrived", "In Progress"].includes(t.status)
+          );
+        });
+      }
+
+      if (status === "completed") {
+        filteredTasks = todayTasks.filter((t) => {
+          const isSamePerson =
+            assign_id && t.assign_id?.toString() === assign_id;
+
+          return (
+            isSamePerson &&
+            ["Completed", "Customer Not Available"].includes(t.status)
+          );
+        });
+      }
+
+      if (!filteredTasks.length) return null;
 
       let distanceInKm = null;
       let googleMapUrl = null;
 
-      if (userLat && userLng && address?.latitude && address?.longitude) {
+      if (
+        userLat &&
+        userLng &&
+        order.addressId?.latitude &&
+        order.addressId?.longitude
+      ) {
         distanceInKm = haversineDistance(
           userLat,
           userLng,
-          address.latitude,
-          address.longitude
+          order.addressId.latitude,
+          order.addressId.longitude
         ).toFixed(2);
 
-        googleMapUrl = `https://www.google.com/maps/dir/?api=1&origin=${userLat},${userLng}&destination=${address.latitude},${address.longitude}&travelmode=driving`;
+        googleMapUrl = `https://www.google.com/maps/dir/?api=1&origin=${userLat},${userLng}&destination=${order.addressId.latitude},${order.addressId.longitude}&travelmode=driving`;
       }
 
       return {
-        ...order._doc,
-        address,
-        user,
-        products,
-        vehicle, // ✅ ADD THIS
-        todayTasks,
+        ...order,
+        address: order.addressId,
+        user: order.userId,
+        products: order.productIds,
+        todayTasks: filteredTasks,
         distanceInKm,
         googleMapUrl,
       };
-    });
-
-    const orders = (await Promise.all(taskOrderPromises)).filter(Boolean);
+    }).filter(Boolean);
 
     res.status(200).json({
       success: true,
-      orders,
+      orders: result,
     });
   } catch (error) {
     console.error(error);
