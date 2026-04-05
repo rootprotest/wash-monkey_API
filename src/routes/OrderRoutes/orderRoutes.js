@@ -140,7 +140,7 @@ const juspay = new Juspay({
 router.post('/hdfc/create-order', async (req, res) => {
   const orderId = req.body.order_id || `order_${Date.now()}`;
   const amount = req.body.amount || 100; // Use amount from body or fallback
-  const returnUrl = `${req.protocol}://${req.get('host')}/api/orders/payment-success`;
+  const returnUrl = `${req.protocol}://${req.get('host')}/api/payment-success`;
 
   try {
     const sessionResponse = await juspay.orderSession.create({
