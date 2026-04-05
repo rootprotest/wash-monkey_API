@@ -140,7 +140,7 @@ const juspay = new Juspay({
 router.post('/hdfc/create-order', async (req, res) => {
   const orderId = req.body.order_id || `order_${Date.now()}`;
   const amount = req.body.amount || 100; // Use amount from body or fallback
- const returnUrl = `${req.protocol}://${req.get('host')}/api/payment-callback`;
+  const returnUrl = `${req.protocol}://${req.get('host')}/api/payment-success`;
 
   try {
     const sessionResponse = await juspay.orderSession.create({
@@ -221,8 +221,8 @@ router.post('/payment-success', async (req, res) => {
 });
 
 
-router.all('/payment-callback', async (req, res) => {
-  const orderId = req.query.order_id || req.body.order_id || req.query.orderId;
+router.post('/payment-callback', async (req, res) => {
+  const orderId = req.body.order_id || req.body.orderId;
 
   if (!orderId) {
     return res.redirect('myapp://payment-failed');
@@ -234,18 +234,22 @@ router.all('/payment-callback', async (req, res) => {
 
     console.log('JUSPAY STATUS:', statusResponse);
 
+    // ✅ SUCCESS
     if (status === 'CHARGED') {
       return res.redirect(`myapp://payment-success?orderId=${orderId}`);
     }
 
+    // ❌ FAILED
     if (status === 'FAILED') {
       return res.redirect(`myapp://payment-failed?orderId=${orderId}`);
     }
 
+    // ⚠️ CANCELLED
     if (status === 'CANCELLED') {
       return res.redirect(`myapp://payment-cancelled?orderId=${orderId}`);
     }
 
+    // ⏳ PENDING
     return res.redirect(`myapp://payment-pending?orderId=${orderId}`);
   } catch (error) {
     console.error('Callback error:', error);
